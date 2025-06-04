@@ -1,6 +1,7 @@
 import yaml
 import os
 import time
+import asyncio
 from pocketflow import Node, BatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_python
@@ -141,12 +142,13 @@ IMPORTANT:
             yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
             decision = yaml.safe_load(yaml_str)
             
-            shared["action"] = decision['action']
-            shared["tool_name"] = decision["tool"]
-            shared["parameters"] = decision["parameters"]
+            shared["action"] = decision.get("action", "")
+            shared["tool_name"] = decision.get("tool", "")
+            shared["parameters"] = decision.get("parameters", "")
             shared["thinking"] = decision.get("thinking", "")
             
             print(f"🎬 Selected action: {decision['action']}")
+
             if shared["action"] == 'done':
                 answer = f"✅ Final Answer: {shared['tool_result']}"
                 border = "=" * (len(answer) + 5)
