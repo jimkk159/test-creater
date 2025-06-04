@@ -1,16 +1,18 @@
 from pocketflow import Flow
-from nodes import GetQuestionNode, AnswerNode
+from nodes import GetToolsNode, DecideToolNode, ExecuteToolNode
 
-def create_qa_flow():
-    """Create and return a question-answering flow."""
+def create_code_generator_flow():
+    """Creates and returns the code generator flow."""
     # Create nodes
-    get_question_node = GetQuestionNode()
-    answer_node = AnswerNode()
+    get_tools_node = GetToolsNode()
+    decide_node = DecideToolNode()
+    execute_node = ExecuteToolNode()
     
-    # Connect nodes in sequence
-    get_question_node >> answer_node
-    
-    # Create flow starting with input node
-    return Flow(start=get_question_node)
+    # Connect nodes
+    get_tools_node - "decide" >> decide_node
+    decide_node - "tool" >> execute_node
+    execute_node - "tool_result" >> decide_node
 
-qa_flow = create_qa_flow()
+    # Create flow starting with test generation
+    flow = Flow(start=get_tools_node)
+    return flow 
