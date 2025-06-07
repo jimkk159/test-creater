@@ -2,17 +2,20 @@ import re
 import yaml
 import os
 import time
+import json
 import asyncio
+from dotenv import load_dotenv
 from pocketflow import Node, BatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
 from utils.utils import get_tools, call_tool, extract_describe_blocks
 
-MAX_ITERATION = 5
-BORDER_LEN = 96
+load_dotenv()
 
+MAX_ITERATION = 2
+BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
-allowed_dir="/Users/jimchung/Desktop/Code/python"
+allowed_dir=os.environ.get("ALLOW_READ_FILE_PATH")
 
 class ReturnDefaultActionNode(Node):
     def post(self, shared, prep_res, exec_res):
@@ -271,6 +274,7 @@ Output in this YAML format with reasoning:
 ```yaml
 reasoning: |
     The input parameters should be: param1 as a string, and param2 as a number.
+    I should consider the more case as possible as I can. 
     To test the function, I will consider basic cases, edge cases, corner cases, input type check cases....
     For this problem, I need to test...
 test_cases:
@@ -478,13 +482,14 @@ class RunTests(BatchNode):
 
         # Print aggregate test results
         print(border)
-        print("")
         title = f"--- Aggregate Test Results: {passed_tests}/{total_tests} Passed ---"
         print(title)
 
         if failed_tests == 0:
             print("🎉All tests passed across all batches!")
             print("-" * len(title))
+            with open('output.test.js', 'w', encoding='utf-8') as tmp_file:
+                tmp_file.write(shared["test_code"])
             return 'success' # All tests passed
 
         # If there are failed tests, print details
@@ -544,13 +549,77 @@ class Revise(Node):
             formatted_failures += f"   expected: {result['expected']}\n"
             formatted_failures += f"   description: {result['description']}\n\n"
 
+        
+        example = {
+                    "action": "review",
+                    "thinking": "The test cases are intended to check how the function reacts when supplied with inputs of various types. However, the function implementation does not currently handle type checking or throw errors for non-numeric inputs. Therefore, the failures I observed correspond to the function simply attempting to concatenate strings or merge objects instead of throwing the anticipated exceptions.\n\nI will revise the test cases to clarify expectations for both valid and invalid types, and suggest an appropriate update to the function to satisfy these expectations.",
+                    "reasoning": "Looking at the failures, I see that the add function does not throw errors for invalid inputs like a string or an object. The function is performing addition (or string concatenation) instead of enforcing type checks. I will revise the test function to handle these scenarios correctly, and suggest an implementation of the add function that throws errors for invalid inputs.",
+                    "test_cases": {
+                            "pass": [
+                                    {
+                                    "id": 1,
+                                    "name": "Basic case with positive numbers",
+                                    "input": { "a": 2, "b": 3 },
+                                    "expected": 5,
+                                    "status": "ok"
+                                    },
+                                    {
+                                    "id": 2,
+                                    "name": "Basic case with negative numbers",
+                                    "input": { "a": -1, "b": -2 },
+                                    "expected": -3,
+                                    "status": "ok"
+                                    },
+                                    {
+                                    "id": 3,
+                                    "name": "Edge case - adding zero",
+                                    "input": { "a": 5, "b": 0 },
+                                    "expected": 5,
+                                    "status": "ok"
+                                    },
+                                    {
+                                    "id": 4,
+                                    "name": "Edge case - adding two zeros",
+                                    "input": { "a": 0, "b": 0 },
+                                    "expected": 0,
+                                    "status": "ok"
+                                    },
+                            ],
+                            "retry": [
+                                                        {
+                        "id": 5,
+                        "name": "Type case - adding a number and a string",
+                        "input": { "a": "3", "b": 2 },
+                        "expected": "3 is not a number",
+                        "status": "fail"
+                        },
+                        {
+                        "id": 6,
+                        "name": "Type case - adding an object",
+                        "input": { "a": {}, "b": 5 },
+                        "expected": "{} is not a number",
+                        "status": "fail"
+                        }
+                            ]
+                        },
+                    "function_suggestion": ["const add = async (a, b) => {   if (typeof a !== 'number') {     throw new Error(`${a} is not a number`);    }    if (typeof b !== 'number') {        throw new Error(`${b} is not a number`);    }    return a + b;};"],
+                    "test_code": """ 
+                                    describe('add function', () => {
+                                        const add = async (a, b) => a + b;
+                                        test('Basic case - positive integers', async () => {
+                                            expect(await add(1, 2)).toBe(2);
+                                        });
+                                    });
+                                """
+                }
+
         prompt = f"""
 You are a QA engineer to check and fix the test code result. 
 
 ### NEXT ACTION
-Your action choice: [done, review, error]
+Your action choice: [pass, review, error]
 
-- done:
+- pass:
     This action means the test codes are fine.
 
 - review:
@@ -567,6 +636,10 @@ Your action choice: [done, review, error]
 ### TIP
     1. Sometime, the test code fail is due to the function to be test has some drawback.
        You don't need to fix this kind of fail in the test result.
+    2. You should put the ok test code in the pass class, and retry test code in the retry class.
+    3. You should provide the entire revised test code in the test_code  class.
+    4. If the original code has bug, put the revised function in the function_suggestion.
+    5. function_suggestion must be a list, even it only has one.
 
 ### TEST RESULT INFORMATION
 
@@ -592,70 +665,122 @@ reasoning: |
     Looking at the failures, I see that...
     The issue appears to be...
     I will revise...
+    I should put this into test code into retry...
 test_cases:  # Dictionary mapping test case index (1-based) to revised test case
+
     1:
         name: "Revised test name"
         input: {{...}}
         expected: ...
         status: fail # This means the test code has bug
-    function_code: |  # Include this if revising function
         ....
 
-    
 <if original function has bug>
     This test code is fine. It's the original function has bug, I see that...
     The issue appears to be...
-    I should put this 
+    I should put this into test code into pass...
 
     1:
         name: "Revised test name"
         input: {{...}}
         expected: ...
         status: ok # This means the test code is fine
+        
+function_suggestion: # Include this if has original function modification 
+test_code:  # Include this if revising function
+
+### EXAMPLE
+    {json.dumps(example, indent=2)}
 ```"""
         response = call_llm(prompt)
         yaml_str = response.split("```yaml")[1].split("```")[0].strip()
         result = yaml.safe_load(yaml_str)
-        
-        print(result)
+
         # Validation asserts
-        # if "test_cases" in result:
-        #     assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
-        #     for index_str, test_case in result["test_cases"].items():
-        #         assert isinstance(index_str, (str, int)), "test_cases keys must be strings or ints"
-        #         assert "name" in test_case, f"Revised test case {index_str} missing 'name' field"
-        #         assert "input" in test_case, f"Revised test case {index_str} missing 'input' field"
-        #         assert "expected" in test_case, f"Revised test case {index_str} missing 'expected' field"
+        assert "action" in result, "Result must have 'action' field"
+        assert result["action"] in ["done", "review", "error"], "action must be one of: done, review, error"
+        assert "thinking" in result, "Result must have 'thinking' field"
+        assert "thinking" in result, "Result must have 'thinking' field"
+        assert isinstance(result["thinking"], str), "thinking must be a string"
+        assert "reasoning" in result, "Result must have 'reasoning' field when action is review"
+        assert isinstance(result["reasoning"], str), "reasoning must be a string"
         
-        # if "function_code" in result:
-        #     assert isinstance(result["function_code"], str), "function_code must be string"
-        #     assert "def run_code" in result["function_code"], "Function must be named 'run_code'"
+        if "test_cases" in result:
+            assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
+            assert "pass" in result["test_cases"], "test_cases must have 'pass' category"
+            assert "retry" in result["test_cases"], "test_cases must have 'retry' category"
+            
+            # Validate pass test cases
+            for test_case in result["test_cases"]["pass"]:
+                assert "id" in test_case, f"Test case missing 'id' field"
+                assert "name" in test_case, f"Test case missing 'name' field"
+                assert "input" in test_case, f"Test case missing 'input' field"
+                assert "expected" in test_case, f"Test case missing 'expected' field"
+                assert "status" in test_case, f"Test case missing 'status' field"
+                assert test_case["status"] == "ok", f"Pass test case status must be 'ok'"
+                
+            # Validate retry test cases
+            for test_case in result["test_cases"]["retry"]:
+                assert "id" in test_case, f"Test case missing 'id' field"
+                assert "name" in test_case, f"Test case missing 'name' field"
+                assert "input" in test_case, f"Test case missing 'input' field"
+                assert "expected" in test_case, f"Test case missing 'expected' field"
+                assert "status" in test_case, f"Test case missing 'status' field"
+                assert test_case["status"] == "fail", f"Retry test case status must be 'fail'"
         
-        # return result
+        if "function_suggestion" in result:
+            assert isinstance(result["function_suggestion"], list), "function_suggestion must be a list"
+            for func in result["function_suggestion"]:
+                assert isinstance(func, str), "function_suggestion items must be strings"
+                assert "async" in func, "Function must be async"
+                assert "throw new Error" in func, "Function must include error handling"
+        
+        if "test_code" in result:
+            assert isinstance(result["test_code"], str), "test_code must be string"
+            assert "describe" in result["test_code"], "Test code must include describe block"
+            assert "test(" in result["test_code"], "Test code must include test cases"
+            assert "expect" in result["test_code"], "Test code must include expect statements"
+
+        return result
 
     def post(self, shared, prep_res, exec_res):
         # Print what is being revised
-        pass
-        # print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
-        
-        # # Handle test case revisions - map indices to actual test cases
-        # if "test_cases" in exec_res:
-        #     current_tests = shared["test_cases"].copy()
-        #     print("Revising test cases:")
-        #     for index_str, revised_test in exec_res["test_cases"].items():
-        #         index = int(index_str) - 1  # Convert to 0-based
-        #         if 0 <= index < len(current_tests):
-        #             old_test = current_tests[index]
-        #             print(f"  Test {index_str}: '{old_test['name']}' -> '{revised_test['name']}'")
-        #             print(f"    old input: {old_test['input']}")
-        #             print(f"    new input: {revised_test['input']}")
-        #             print(f"    old expected: {old_test['expected']}")
-        #             print(f"    new expected: {revised_test['expected']}")
-        #             current_tests[index] = revised_test
-        #     shared["test_cases"] = current_tests
+        print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
+
+        # Handle test case revisions
+        if "test_cases" in exec_res:
+            print("Revising test cases:")
             
-        # if "function_code" in exec_res:
-        #     print("Revising function code:")
-        #     print("New function:")
-        #     print(exec_res["function_code"])
-        #     shared["function_code"] = exec_res["function_code"] 
+            # Handle pass test cases
+            if "pass" in exec_res["test_cases"]:
+                print("Passing test cases:")
+                for test_case in exec_res["test_cases"]["pass"]:
+                    print(f"  Test {test_case['id']}: {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
+            
+            # Handle retry test cases
+            if "retry" in exec_res["test_cases"]:
+                print("Retry test cases:")
+                for test_case in exec_res["test_cases"]["retry"]:
+                    print(f"  Test {test_case['id']}: {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
+            
+            # Update shared test cases
+            shared["test_cases"] = exec_res["test_cases"]
+        
+        # Handle function suggestion
+        if "function_suggestion" in exec_res:
+            print("\nFunction suggestion:")
+            for func in exec_res["function_suggestion"]:
+                print(func)
+            shared["function_suggestion"] = exec_res["function_suggestion"]  # Use first suggestion
+        
+        # Handle test code
+        if "test_code" in exec_res:
+            print("New test code:")
+            print(exec_res["test_code"])
+            shared["test_code"] = exec_res["test_code"] 

@@ -40,9 +40,9 @@ def auto_code_test_generate_flow():
     generate_test_cases >> implement_function
     implement_function >> run_tests
     run_tests - "failure" >> revise
-    # run_tests - "success"  >> return_default_node
-    # revise >> run_tests
+    run_tests - "success"  >> return_default_node
+    revise >> run_tests
 
     # Create flow starting with test generation
-    flow = Flow(start=revise)
+    flow = Flow(start=read_and_find_file_flow)
     return flow 

@@ -1,3 +1,3 @@
 const add = async (a, b) => a + b;
 
-module.exports = { add };
+module.exports = { add, subtract };

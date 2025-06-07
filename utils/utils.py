@@ -8,7 +8,7 @@ def get_tools(server_script_path):
     """
     async def _get_tools():
         server_params = StdioServerParameters(
-            command="python",
+            command="python3",
             args=[server_script_path]
         )
         
@@ -26,7 +26,7 @@ def call_tool(server_script_path=None, tool_name=None, arguments=None):
     """
     async def _call_tool():
         server_params = StdioServerParameters(
-            command="python",
+            command="python3",
             args=[server_script_path]
         )
         

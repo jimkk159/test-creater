@@ -6,6 +6,7 @@ from contextlib import redirect_stdout, redirect_stderr
 import os
 import tempfile
 import subprocess
+import asyncio
 
 def extract_failed_tests(jest_output):
     overall_summary = ""
@@ -147,23 +148,34 @@ def create_jest_test_file(test_code):
         # Return None for path and command, and include the error message
         return None, None, f"Error preparing JS execution: {str(e)}"
 
-def execute_jest_test(test_code):
+async def execute_jest_test(test_code):
     file_path, command, error = create_jest_test_file(test_code)
 
     if error:
         print(f"Error preparing JS execution: {error}")
     else:
         try:
-            result = subprocess.run(command, capture_output=True, text=True, shell=True, check=True)
-            return extract_failed_tests(result.stderr)
-        except subprocess.CalledProcessError as e:
-            return extract_failed_tests(e.stderr)
+            # Create async subprocess
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                text=True
+            )
+            
+            # Wait for process to complete and get output
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                return extract_failed_tests(stderr)
+            else:
+                return extract_failed_tests(stderr)
+                
         except FileNotFoundError:
-             return "Error: Jest or npx command not found. Make sure Node.js and npm/yarn are installed and in your PATH, and Jest is installed globally or locally in the project."
+            return "Error: Jest or npx command not found..."
         except Exception as e:
-            return f"An unexpected error occurred during command execution: {e}"
+            return f"An unexpected error occurred: {e}"
         finally:
-            # Clean up the temporary file
             if os.path.exists(file_path):
                 os.remove(file_path)
 
@@ -252,7 +264,7 @@ describe('basic test', () => {
 });
 
 """
-    failures = execute_jest_test(js_test_code)
+    failures = asyncio.run(execute_jest_test(js_test_code))
     print(failures)
     if isinstance(failures, list):
         for failure in failures:
