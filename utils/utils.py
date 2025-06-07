@@ -1,3 +1,4 @@
+import re
 import asyncio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -20,6 +21,7 @@ def get_tools(server_script_path):
     return asyncio.run(_get_tools())
     
 def call_tool(server_script_path=None, tool_name=None, arguments=None):
+    
     """Call a tool on an MCP server.
     """
     async def _call_tool():
@@ -35,6 +37,35 @@ def call_tool(server_script_path=None, tool_name=None, arguments=None):
                 return result.content[0].text
     
     return asyncio.run(_call_tool())
+
+def extract_describe_blocks(js_code: str):
+    blocks = []
+    pattern = re.compile(r'describe\(([^)]+)\)\s*=>\s*{')
+    start_positions = [m.start() for m in pattern.finditer(js_code)]
+
+    for start in start_positions:
+        i = start
+        brace_count = 0
+        in_block = False
+
+        while i < len(js_code):
+            if js_code[i] == '{':
+                brace_count += 1
+                in_block = True
+            elif js_code[i] == '}':
+                brace_count -= 1
+                if brace_count == 0 and in_block:
+                    # Look ahead for closing ');'
+                    end = i
+
+                    while end < len(js_code) and not js_code[end:end+2] == ');':
+                        end += 1
+                    blocks.append(js_code[start:end+2])  # Include ');'
+                    break
+            i += 1
+
+    return blocks
+
 
 if __name__ == "__main__":
     # Find available tools

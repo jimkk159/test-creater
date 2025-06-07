@@ -1,0 +1,31 @@
+describe('add', () => {
+    const add = async (a, b) => a + b;
+
+    test('Basic case - positive numbers', async () => {
+        expect(await add(2, 3)).toBe(5);
+    });
+
+    test('Edge case - addition with zero', async () => {
+        expect(await add(10, 0)).toBe(10);
+    });
+
+    test('Corner case - large numbers', async () => {
+        expect(await add('1e10', '1e10')).toBe(2e10);
+    });
+});
+
+describe('substract', () => {
+    const substract = async (a, b) => a - b;
+
+    test('Basic case - positive numbers', async () => {
+        expect(await substract(5, 2)).toBe(3);
+    });
+
+    test('Edge case - subtraction resulting in negative', async () => {
+        expect(await substract(2, 5)).toBe(-3);
+    });
+
+    test('Corner case - subtraction with zero', async () => {
+        expect(await substract(7, 0)).toBe(7);
+    });
+});
