@@ -27,7 +27,16 @@ def Read_and_find_file_flow():
 def run_test_flow():
     """Creates and returns the parallel translation flow."""
     run_tests = RunTests()
-    return AsyncFlow(start=run_tests)
+    revise = AsyncNodeWrapper(Revise())
+    return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
+
+    run_tests - "failure" >> revise
+    run_tests - "success"  >> return_default_node
+    revise >> run_tests
+    
+    flow =  AsyncFlow(start=run_tests)
+    
+    return flow
 
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
@@ -38,17 +47,13 @@ def auto_code_test_generate_flow():
     generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
     implement_function = AsyncNodeWrapper(ImplementFunction())
     run_tests = run_test_flow()
-    revise = AsyncNodeWrapper(Revise())
-    return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
     analyze_node >> generate_test_cases
     generate_test_cases >> implement_function
     implement_function >> run_tests
-    run_tests - "failure" >> revise
-    run_tests - "success"  >> return_default_node
-    revise >> run_tests
+
 
     # Create flow starting with test generation
     return AsyncFlow(start=read_and_find_file_flow)

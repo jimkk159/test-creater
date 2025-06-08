@@ -195,37 +195,30 @@ def extract_test_counts(test_output_string):
         containing the respective counts as integers. Returns {
         'passed': 0, 'failed': 0, 'total': 0} if the pattern is not found.
     """
-    # Regex for output with failures: "Tests: 1 failed, 2 passed, 3 total"
-    match_failed = re.search(r'Tests:\s*(\d+)\s*failed,\s*(\d+)\s*passed,\s*(\d+)\s*total', test_output_string)
+    # Find the Tests line
+    tests_line_match = re.search(r'^Tests:\s+(.*)$', test_output_string, re.MULTILINE)
 
-    # Regex for output without failures: "Tests: 3 passed, 3 total"
-    match_passed = re.search(r'Tests:\s*(\d+)\s*passed,\s*(\d+)\s*total', test_output_string)
+    failed_count = passed_count = total_count = 0
 
-    if match_failed:
-        failed_count = int(match_failed.group(1))
-        passed_count = int(match_failed.group(2))
-        total_count = int(match_failed.group(3))
-        return {
-            'passed': passed_count,
-            'failed': failed_count,
-            'total': total_count
-        }
-    elif match_passed:
-        # In the all-pass case, the first group is passed, the second is total
-        passed_count = int(match_passed.group(1))
-        total_count = int(match_passed.group(2))
-        return {
-            'passed': passed_count,
-            'failed': 0,
-            'total': total_count
-        }
-    else:
-        # Return zeros if neither pattern is found
-        return {
-            'passed': 0,
-            'failed': 0,
-            'total': 0
-        }
+    if tests_line_match:
+        tests_line = tests_line_match.group(1)
+
+        failed_match = re.search(r'(\d+)\s+failed', tests_line)
+        passed_match = re.search(r'(\d+)\s+passed', tests_line)
+        total_match = re.search(r'(\d+)\s+total', tests_line)
+
+        if failed_match:
+            failed_count = int(failed_match.group(1))
+        if passed_match:
+            passed_count = int(passed_match.group(1))
+        if total_match:
+            total_count = int(total_match.group(1))
+
+    return {
+        'passed': passed_count,
+        'failed': failed_count,
+        'total': total_count
+    }
 
 if __name__ == "__main__":
 #     Test 1: Working function

@@ -17,17 +17,26 @@ async def main():
         const add = async (a, b) => a + b;
         
         test('Basic case - positive integers', async () => {
-            expect(await add(5, 3)).toBe(8);
-        });
-
-        test('Basic case - positive integers', async () => {
-            expect(await add(1, 1)).toBe(3);
+            expect(await add(1, 1)).toBe(2);
         });
 
         test('Basic case - positive integers', async () => {
             expect(await add(1, 2)).toBe(2);
         });
     });
+    
+    describe('subtract function', () => {
+        const subtract = async (a, b) => a - b;
+        
+        test('Basic case - positive integers', async () => {
+            expect(await add(1, 1)).toBe(1);
+        });
+
+        test('Basic case - positive integers', async () => {
+            expect(await add(1, 2)).toBe(2);
+        });
+    });
+    
 """
     
     shared = {

@@ -14,7 +14,7 @@ import random
 
 load_dotenv()
 
-MAX_ITERATION = 5
+MAX_ITERATION = 3
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
 allowed_dir=os.environ.get("ALLOW_READ_FILE_PATH")
@@ -454,11 +454,20 @@ class RunTests(AsyncParallelBatchNode):
         print(border)
         print("🏃 Running test functions...")
         shared["max_iterations"] = shared.get("max_iteration", MAX_ITERATION)
+        
+        # Initialize iteration counts for each test suite if not exists
+        if "suite_iterations" not in shared:
+            shared["suite_iterations"] = {}
+            
         return extract_describe_blocks(shared["test_code"])
     
     async def exec_async(self, test_code):
+        # Extract suite name from test code
+        suite_match = re.search(r"describe\('([^']+)'", test_code)
+        suite_name = suite_match.group(1) if suite_match else "unknown_suite"
 
         output = await execute_jest_test(test_code)
+
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)
@@ -469,7 +478,8 @@ class RunTests(AsyncParallelBatchNode):
         if failed == 0: 
             return {
                 "status": test_counts,
-                "detail": data
+                "detail": data,
+                "suite": suite_name
             }
         
         for i, content in enumerate(details):
@@ -494,30 +504,36 @@ class RunTests(AsyncParallelBatchNode):
                     "expected": expected,
                     "description": content["description"]
                 })
-
         return {
             "status": test_counts,
-            "detail": data
+            "detail": data,
+            "suite": suite_name
         }
 
     async def post_async(self, shared, prep_res, exec_res_list):
-        shared["iteration_count"] = shared.get("iteration_count", 0) + 1
         total_tests = 0
         passed_tests = 0
         failed_tests = 0
-        all_failed_details = []
-
+        all_failed_details = []        
         # Aggregate results from all batches
         for batch_result in exec_res_list:
             if isinstance(batch_result, dict) and "status" in batch_result:
                 status = batch_result["status"]
+                suite_name = batch_result.get("suite", "unknown_suite")
+                
+                # Initialize suite iteration count if not exists
+                if suite_name not in shared["suite_iterations"]:
+                    shared["suite_iterations"][suite_name] = 0
+                
+                # Increment iteration count for this suite
+                shared["suite_iterations"][suite_name] += 1
+                
                 total_tests += status.get("total", 0)
                 passed_tests += status.get("passed", 0)
                 failed_tests += status.get("failed", 0)
                 if "detail" in batch_result:
                     all_failed_details.extend(batch_result["detail"])
             else:
-                # Handle unexpected items in exec_res_list if necessary
                 print(f"Warning: Unexpected item in exec_res_list: {batch_result}")
 
         # Print aggregate test results
@@ -533,24 +549,30 @@ class RunTests(AsyncParallelBatchNode):
             return 'success' # All tests passed
 
         # If there are failed tests, print details
-        print(f"\nFailed Tests ({failed_tests} total):")
-        for i, detail in enumerate(all_failed_details, 1):
-            print(f"{i}. Suite: {detail.get('suite')}, Test Case: {detail.get('test_case')}")
-            print(f"   Description: {detail.get('description')}")
-            print(f"   Expected: {detail.get('expected')}, Received: {detail.get('received')}")
-            print('-' * BORDER_LEN)
+        # print(f"\nFailed Tests ({failed_tests} total):")
+        # for i, detail in enumerate(all_failed_details, 1):
+        #     suite_name = detail.get('suite', 'unknown_suite')
+        #     print(f"{i}. Suite: {suite_name}, Test Case: {detail.get('test_case')}")
+        #     print(f"   Description: {detail.get('description')}")
+        #     print(f"   Expected: {detail.get('expected')}, Received: {detail.get('received')}")
+        #     print(f"   Iteration: {shared['suite_iterations'][suite_name]}/{shared['max_iterations']}")
+        #     print('-' * BORDER_LEN)
 
         shared["passed"] = passed_tests
         shared["total_tests"] = total_tests
-        shared["failed_tests"] = all_failed_details # Store details of all failed tests
+        shared["failed_tests"] = all_failed_details
+        # Check if any suite has reached max iterations
+        max_iterations_reached = any(
+            shared["suite_iterations"][suite] >= shared["max_iterations"]
+            for suite in shared["suite_iterations"]
+        )
 
-        # Decide next action based on failures or max iterations
-        if shared["iteration_count"] >= shared.get("max_iterations", MAX_ITERATION):
-            print("Max iterations reached.")
+        if max_iterations_reached:
+            print("Max iterations reached for one or more test suites.")
             return "max_iterations"
         else:
-            print(f"Iteration {shared['iteration_count']} failed. Revising code.")
-            return "failure" # Or another action like "revise"
+            print(f"❌Some tests failed. Revising code...")
+            return "failure"
 
 class Revise(Node):
     def prep(self, shared):
@@ -558,23 +580,18 @@ class Revise(Node):
         print("💭 AI review the test result...")
         failed_tests = [r for r in shared["failed_tests"] ]
 
-        return {
-            "functions": shared.get("functions", ""),
-            "test_cases": shared.get("test_cases", ""),
-            "test_code": shared.get("test_code", ""),
-            "max_iterations": shared.get("max_iterations", ""),
-            "iteration_count": shared.get("iteration_count", ""),
-            "is_passed": shared.get("passed", 0) == shared.get("total_tests", 0),
-            "passed": shared.get("passed", ""),
-            "total_tests": shared.get("total_tests", ""),
-            "failed_tests": failed_tests
-        }
+        if 'iteration_count' not in shared:
+            shared['iteration_count'] = 0
+        else: 
+            shared['iteration_count'] += 1
+            
+        test_cases = shared.get("test_cases", "") 
+        failed_tests = shared.get("failed_tests", "") 
 
-    def exec(self, inputs):
         # Format current test cases nicely
         formatted_tests = ""
-        for i, func_name in enumerate(inputs['test_cases'], 1):
-            for j, test in enumerate(inputs['test_cases'][func_name], 1):
+        for i, func_name in enumerate(test_cases, 1):
+            for j, test in enumerate(test_cases[func_name], 1):
                 formatted_tests += f"{i}. {test['name']}\n"
                 formatted_tests += f"   explain: {test['explain']}\n"
                 formatted_tests += f"   input: {test['input']}\n"
@@ -582,76 +599,27 @@ class Revise(Node):
         
         # Format failed tests nicely
         formatted_failures = ""
-        for i, result in enumerate(inputs['failed_tests'], 1):
-            formatted_failures += f"{i}. {result['test_case']}:\n"
+        for i, result in enumerate(failed_tests, 1):
             formatted_failures += f"{i}. {result['test_case']}:\n"
             formatted_failures += f"   received: {result['received']}\n"
             formatted_failures += f"   expected: {result['expected']}\n"
             formatted_failures += f"   description: {result['description']}\n\n"
 
-        
-        example = {
-                    "action": "review",
-                    "thinking": "The test cases are intended to check how the function reacts when supplied with inputs of various types. However, the function implementation does not currently handle type checking or throw errors for non-numeric inputs. Therefore, the failures I observed correspond to the function simply attempting to concatenate strings or merge objects instead of throwing the anticipated exceptions.\n\nI will revise the test cases to clarify expectations for both valid and invalid types, and suggest an appropriate update to the function to satisfy these expectations.",
-                    "reasoning": "Looking at the failures, I see that the add function does not throw errors for invalid inputs like a string or an object. The function is performing addition (or string concatenation) instead of enforcing type checks. I will revise the test function to handle these scenarios correctly, and suggest an implementation of the add function that throws errors for invalid inputs.",
-                    "test_cases": {
-                            "pass": [
-                                    {
-                                    "id": 1,
-                                    "name": "Basic case with positive numbers",
-                                    "input": { "a": 2, "b": 3 },
-                                    "expected": 5,
-                                    "status": "ok"
-                                    },
-                                    {
-                                    "id": 2,
-                                    "name": "Basic case with negative numbers",
-                                    "input": { "a": -1, "b": -2 },
-                                    "expected": -3,
-                                    "status": "ok"
-                                    },
-                                    {
-                                    "id": 3,
-                                    "name": "Edge case - adding zero",
-                                    "input": { "a": 5, "b": 0 },
-                                    "expected": 5,
-                                    "status": "ok"
-                                    },
-                                    {
-                                    "id": 4,
-                                    "name": "Edge case - adding two zeros",
-                                    "input": { "a": 0, "b": 0 },
-                                    "expected": 0,
-                                    "status": "ok"
-                                    },
-                            ],
-                            "retry": [
-                                                        {
-                        "id": 5,
-                        "name": "Type case - adding a number and a string",
-                        "input": { "a": "3", "b": 2 },
-                        "expected": "3 is not a number",
-                        "status": "fail"
-                        },
-                        {
-                        "id": 6,
-                        "name": "Type case - adding an object",
-                        "input": { "a": {}, "b": 5 },
-                        "expected": "{} is not a number",
-                        "status": "fail"
-                        }
-                            ]
-                        },
-                    "function_suggestion": ["const add = async (a, b) => {   if (typeof a !== 'number') {     throw new Error(`${a} is not a number`);    }    if (typeof b !== 'number') {        throw new Error(`${b} is not a number`);    }    return a + b;};"],
-                    "test_code": """ 
-                                    describe('add function', () => {
-                                        const add = async (a, b) => a + b;
-                                        test('Basic case - positive integers', async () => {
-                                            expect(await add(1, 2)).toBe(2);
-                                        });
-                                    });
-                                """
-                }
+        return {
+            "functions": shared.get("functions", ""),
+            "test_cases": shared.get("test_cases", ""),
+            "test_code": shared.get("test_code", ""),
+            "max_iterations": shared.get("max_iterations", ""),
+            "iteration_count": shared.get("iteration_count", 0),
+            "is_passed": shared.get("passed", 0) == shared.get("total_tests", 0),
+            "passed": shared.get("passed", ""),
+            "total_tests": shared.get("total_tests", ""),
+            "failed_tests": failed_tests,
+            "formatted_tests": formatted_tests,
+            "formatted_failures": formatted_failures
+        }
+
+    def exec(self, inputs):
 
         prompt = f"""
 You are a QA engineer to check and fix the test code result. 
@@ -677,22 +645,19 @@ Your action choice: [pass, review, error]
     1. Sometime, the test code fail is due to the function to be test has some drawback.
        You don't need to fix this kind of fail in the test result.
     2. You should put the ok test code in the pass class, and retry test code in the retry class.
-    3. You should provide the entire revised test code in the test_code  class.
-    4. If the original code has bug, put the revised function in the function_suggestion.
-    5. function_suggestion must be a list, even it only has one.
+    3. You should provide the entire revised test code in the test_code class.
+    4. If the original code has a bug, put the revised function in the function_suggestion.
 
 ### TEST RESULT INFORMATION
 
     Current test cases:
-    {formatted_tests}
+    {inputs["formatted_tests"] if inputs["formatted_tests"] else "No test cases available"}
 
     Current function:
-    ```python
-    {inputs['functions']}
-    ```
+    {f"```javascript\n{inputs['functions']}\n```" if inputs['functions'] else 'No functions available'}
 
     Failed tests:
-    {formatted_failures}
+    {inputs["formatted_failures"]}
 
 Output in this YAML format:
 ```yaml
@@ -726,11 +691,45 @@ test_cases:  # Dictionary mapping test case index (1-based) to revised test case
         expected: ...
         status: ok # This means the test code is fine
         
-function_suggestion: # Include this if has original function modification 
+function_suggestion: [] # Include this if has original function modification 
 test_code:  # Include this if revising function
 
 ### EXAMPLE
-    {json.dumps(example, indent=2)}
+    action: review
+    thinking: ...
+    reasoning: ...
+    test_cases:
+    pass:
+        - name: "Basic case with positive numbers"
+        input:
+            a: 2
+            b: 3
+        expected: 5
+        status: "ok"
+    retry:
+        - name: "Type case - adding a number and a string"
+        input:
+            a: "3"
+            b: 2
+        expected: "3 is not a number"
+        status: "fail"
+    function_suggestion: 
+        - |
+            {"""const add = async (a, b) => {
+                return a + b;
+            };"""}
+    test_code: |
+        - |
+            {"""describe('add function', () => {
+                const add = async (a, b) => a + b;
+                test('Basic case - positive integers', async () => {
+                expect(await add(1, 2)).toBe(2);
+                });
+            });"""}
+    
+### IMPORTANT
+    1. You must have the retry and pass part in the test_cases, even there aren't anything inside.
+    2. function_suggestion must be a list, even it only has one.
 ```"""
         response = call_llm(prompt)
         yaml_str = response.split("```yaml")[1].split("```")[0].strip()
@@ -742,8 +741,6 @@ test_code:  # Include this if revising function
         assert "thinking" in result, "Result must have 'thinking' field"
         assert "thinking" in result, "Result must have 'thinking' field"
         assert isinstance(result["thinking"], str), "thinking must be a string"
-        assert "reasoning" in result, "Result must have 'reasoning' field when action is review"
-        assert isinstance(result["reasoning"], str), "reasoning must be a string"
         
         if "test_cases" in result:
             assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
@@ -752,7 +749,6 @@ test_code:  # Include this if revising function
             
             # Validate pass test cases
             for test_case in result["test_cases"]["pass"]:
-                assert "id" in test_case, f"Test case missing 'id' field"
                 assert "name" in test_case, f"Test case missing 'name' field"
                 assert "input" in test_case, f"Test case missing 'input' field"
                 assert "expected" in test_case, f"Test case missing 'expected' field"
@@ -761,7 +757,6 @@ test_code:  # Include this if revising function
                 
             # Validate retry test cases
             for test_case in result["test_cases"]["retry"]:
-                assert "id" in test_case, f"Test case missing 'id' field"
                 assert "name" in test_case, f"Test case missing 'name' field"
                 assert "input" in test_case, f"Test case missing 'input' field"
                 assert "expected" in test_case, f"Test case missing 'expected' field"
@@ -773,7 +768,6 @@ test_code:  # Include this if revising function
             for func in result["function_suggestion"]:
                 assert isinstance(func, str), "function_suggestion items must be strings"
                 assert "async" in func, "Function must be async"
-                assert "throw new Error" in func, "Function must include error handling"
         
         if "test_code" in result:
             assert isinstance(result["test_code"], str), "test_code must be string"
@@ -795,7 +789,7 @@ test_code:  # Include this if revising function
             if "pass" in exec_res["test_cases"]:
                 print("Passing test cases:")
                 for test_case in exec_res["test_cases"]["pass"]:
-                    print(f"  Test {test_case['id']}: {test_case['name']}")
+                    print(f"  Test {test_case['name']}")
                     print(f"    input: {test_case['input']}")
                     print(f"    expected: {test_case['expected']}")
                     print(f"    status: {test_case['status']}")
@@ -804,7 +798,7 @@ test_code:  # Include this if revising function
             if "retry" in exec_res["test_cases"]:
                 print("Retry test cases:")
                 for test_case in exec_res["test_cases"]["retry"]:
-                    print(f"  Test {test_case['id']}: {test_case['name']}")
+                    print(f"  Test {test_case['name']}")
                     print(f"    input: {test_case['input']}")
                     print(f"    expected: {test_case['expected']}")
                     print(f"    status: {test_case['status']}")
@@ -814,13 +808,13 @@ test_code:  # Include this if revising function
         
         # Handle function suggestion
         if "function_suggestion" in exec_res:
-            print("\nFunction suggestion:")
-            for func in exec_res["function_suggestion"]:
-                print(func)
+            # print("\nFunction suggestion:")
+            # for func in exec_res["function_suggestion"]:
+            #     print(func)
             shared["function_suggestion"] = exec_res["function_suggestion"]  # Use first suggestion
         
         # Handle test code
         if "test_code" in exec_res:
-            print("New test code:")
-            print(exec_res["test_code"])
+            # print("New test code:")
+            # print(exec_res["test_code"])
             shared["test_code"] = exec_res["test_code"] 
