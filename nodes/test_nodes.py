@@ -1,220 +1,14 @@
 import re
 import yaml
-import os
-import time
-import json
-import asyncio
-from dotenv import load_dotenv
-from pocketflow import Node, AsyncNode, AsyncParallelBatchNode
+from pocketflow import Node, AsyncParallelBatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import get_tools, call_tool, extract_describe_blocks, save_to_file, cleanup_temp_files
-import aiofiles
-import random
+from utils.utils import extract_describe_blocks, save_to_file, cleanup_temp_files
 
-load_dotenv()
-
-MAX_ITERATION = 3
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
-allowed_dir=os.environ.get("ALLOW_READ_FILE_PATH")
+MAX_ITERATION = 3
 
-class AsyncNodeWrapper(AsyncNode):
-    def __init__(self, sync_node, max_retries=1, wait=0):
-        super().__init__(max_retries=max_retries, wait=wait)
-        self.sync_node = sync_node
-
-    async def prep_async(self, shared):
-        # Run sync prep in a thread pool to avoid blocking
-        return await asyncio.to_thread(self.sync_node.prep, shared)
-
-    async def exec_async(self, prep_res):
-        # Run sync exec in a thread pool
-        return await asyncio.to_thread(self.sync_node.exec, prep_res)
-
-    async def post_async(self, shared, prep_res, exec_res):
-        # Run sync post in a thread pool
-        return await asyncio.to_thread(self.sync_node.post, shared, prep_res, exec_res)
-
-class ReturnDefaultActionNode(Node):
-    def post(self, shared, prep_res, exec_res):
-        # This node simply returns the "default" action to the parent flow
-        return "default"
-class GetToolsNode(AsyncNode):
-    async def prep_async(self, shared):
-        """Initialize and get tools"""
-        print("🔍 Getting available tools...")
-        # Path to the mcp server script relative to the workspace root
-        relative_server_path = "utils/mcp_server.py"
-
-        # Get the absolute path of the workspace root
-        # Assuming the workspace root is the current working directory when the script runs
-        workspace_root = os.getcwd() 
-        
-        # Construct the absolute path to the server script
-        absolute_server_path = os.path.join(workspace_root, relative_server_path)
-        
-        # Check if the absolute path starts with the allowed directory prefix
-        if not absolute_server_path.startswith(allowed_dir):
-             raise ValueError(f"Error: The mcp_server.py script ({absolute_server_path}) is not located within the allowed directory ({allowed_dir}).")
-
-        # If the check passes, return the relative path
-        return relative_server_path
-
-    async def exec_async(self, server_path):
-        """Retrieve tools from the MCP server"""
-        tools = await get_tools(server_path)
-        return tools
-
-    async def post_async(self, shared, prep_res, exec_res):
-        """Store tools and process to yamlResult node"""
-        tools = exec_res
-        shared["file"]["tools"] = tools
-        # Format tool information for later use
-        tool_info = []
-        for i, tool in enumerate(tools, 1):
-            properties = tool.inputSchema.get('properties', {})
-            required = tool.inputSchema.get('required', [])
-            
-            params = []
-            for param_name, param_info in properties.items():
-                param_type = param_info.get('type', 'unknown')
-                req_status = "(Required)" if param_name in required else "(Optional)"
-                params.append(f"    - {param_name} ({param_type}): {req_status}")
-            
-            tool_info.append(f"[{i}] {tool.name}\n  Description: {tool.description}\n  Parameters:\n" + "\n".join(params))
-        
-        shared["file"]["tool_info"] = "\n".join(tool_info)
-
-class DecideToolNode(Node):
-    def prep(self, shared):
-        """Prepare the prompt for LLM to process the question"""
-        tool_info = shared["file"]["tool_info"]
-
-        question = shared["question"]   
-        pre_task_info = ""
-        if  "file" in shared and "action" in shared["file"] : 
-            pre_task_info = f"""
-                ### PREVIOUS ACTION
-                {shared["file"].get("action", "")}
-
-                ### PREVIOUS TOOL
-                {shared["file"].get("tool_name", "")}
-
-                ### PREVIOUS PARAMETERS
-                {shared["file"].get("parameters", "")}
-
-                ### PREVIOUS ACTION RESULT
-                {shared["file"].get("tool_result", "")}
-            """ 
-
-        prompt = (f"""
-### CONTEXT
-You are an assistant that can use tools via Model Context Protocol (MCP).
-
-### ACTION SPACE
-{tool_info}
-
-### TASK
-Answer this question: "{question}"
-
-{pre_task_info}
-
-## NEXT ACTION
-Analyze the question, 
-base on the previous action, (if there has any)
-decide next action to exec.
-
-Your action choice: [tool, done, error]
-
-- tool:
-    Extract any numbers or parameters, and decide which tool to use.
-    Sometime, you need to call tool multiple times.
-
-- done:
-    This action means the question has been fulfilled
-
-- error:
-    Something went wrong, and you need human to solve the problem
-
-Return your response in this format:
-
-```yaml
-action: <name of the action>
-thinking: |
-    <your step-by-step reasoning about what the question is asking and what numbers to extract>
-tool: <name of the tool to use>
-reason: <why you chose this tool>
-parameters:
-    <parameter_name>: <parameter_value>
-    <parameter_name>: <parameter_value>
-```
-IMPORTANT: 
-1. Extract numbers from the question properly
-2. Use proper indentation (4 spaces) for multi-line fields
-3. Use the | character for multi-line text fields
-4. If you already got the answer, just choice the done action.
-"""
-        )
-        return prompt
-
-    def exec(self, prompt):
-        """Call LLM to process the question and decide which tool to use"""
-        print(border)
-        print("🤔 Analyzing question and deciding which tool to use...")
-        response = call_llm(prompt)
-        return response
-
-    def post(self, shared, prep_res, exec_res):
-        """Extract yamlResult from YAML and save to shared context"""
-        try:
-            yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
-            yamlResult = yaml.safe_load(yaml_str)
-            
-            shared["file"]["action"] = yamlResult.get("action", "")
-            shared["file"]["tool_name"] = yamlResult.get("tool", "")
-            shared["file"]["parameters"] = yamlResult.get("parameters", "")
-            shared["file"]["thinking"] = yamlResult.get("thinking", "")
-            print(border)
-            print(f"🎬 Selected action: {shared["file"]["action"]}")
-            # print(f"🧠 AI thinking: {shared["file"]["thinking"]}")
-
-            # print(yamlResult)
-
-            if shared["file"]["action"] == 'done':
-                answer = f"✅ FILE CONTENT:\n{shared["file"]['tool_result']}".rstrip('\n')
-                shared["file"]["result"] = answer
-                print(border)
-                print(answer)
-                return "default"
-            elif shared["file"]["action"] == 'tool':
-                print(f"💡 Selected tool: {yamlResult['tool']}")
-                print(f"🔢 Extracted parameters: {yamlResult['parameters']}")
-                return "tool"
-            return "error"
-            
-        except Exception as e:
-            print(f"❌ Error parsing LLM response on reading file: {e}")
-            print("Raw response:", exec_res)
-            return None
-
-class ExecuteToolNode(AsyncNode):
-    async def prep_async(self, shared):
-        """Prepare tool execution parameters"""
-        return shared["file"]["tool_name"], shared["file"]["parameters"]
-
-    async def exec_async(self, inputs):
-        """Execute the chosen tool"""
-        tool_name, parameters = inputs
-        print(f"🔧 Executing tool '{tool_name}' with parameters: {parameters}")
-        result = await call_tool("utils/mcp_server.py", tool_name, parameters)
-        return result
-
-    async def post_async(self, shared, prep_res, exec_res):
-        # print(f"🔨MCP tool Response: {exec_res}")
-        shared["file"]["tool_result"] = exec_res
-        return "tool_result"
-    
 class Analyze_Node(Node):
     def prep(self, shared):
         """Analyze files for later test generate"""
@@ -439,14 +233,6 @@ function_code: |
 
     def post(self, shared, prep_res, exec_res):
         shared["test_code"] = exec_res
-        
-        # Print the implemented function
-        # print(f"\n=== Implemented Function ===")
-        # saved_path = save_to_file(shared["test_code"], "test_code.test.js")
-        # if(not shared["temp_file_path"]):
-        #     shared["temp_file_path"] = {}
-        # shared["temp_file_path"]["test_code"] = saved_path
-        # print(f"Saved test code to: {saved_path}")
 
 class RunTests(AsyncParallelBatchNode):
     async def prep_async(self, shared):
@@ -548,16 +334,6 @@ class RunTests(AsyncParallelBatchNode):
             cleanup_temp_files(shared, 'temp_file_paths')
             return 'success' # All tests passed
 
-        # If there are failed tests, print details
-        # print(f"\nFailed Tests ({failed_tests} total):")
-        # for i, detail in enumerate(all_failed_details, 1):
-        #     suite_name = detail.get('suite', 'unknown_suite')
-        #     print(f"{i}. Suite: {suite_name}, Test Case: {detail.get('test_case')}")
-        #     print(f"   Description: {detail.get('description')}")
-        #     print(f"   Expected: {detail.get('expected')}, Received: {detail.get('received')}")
-        #     print(f"   Iteration: {shared['suite_iterations'][suite_name]}/{shared['max_iterations']}")
-        #     print('-' * BORDER_LEN)
-
         shared["passed"] = passed_tests
         shared["total_tests"] = total_tests
         shared["failed_tests"] = all_failed_details
@@ -620,7 +396,6 @@ class Revise(Node):
         }
 
     def exec(self, inputs):
-
         prompt = f"""
 You are a QA engineer to check and fix the test code result. 
 
@@ -779,42 +554,37 @@ test_code:  # Include this if revising function
 
     def post(self, shared, prep_res, exec_res):
         # Print what is being revised
-        print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
+        # print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
 
         # Handle test case revisions
         if "test_cases" in exec_res:
-            print("Revising test cases:")
+            # print("Revising test cases:")
             
-            # Handle pass test cases
-            if "pass" in exec_res["test_cases"]:
-                print("Passing test cases:")
-                for test_case in exec_res["test_cases"]["pass"]:
-                    print(f"  Test {test_case['name']}")
-                    print(f"    input: {test_case['input']}")
-                    print(f"    expected: {test_case['expected']}")
-                    print(f"    status: {test_case['status']}")
+            # # Handle pass test cases
+            # if "pass" in exec_res["test_cases"]:
+            #     print("Passing test cases:")
+            #     for test_case in exec_res["test_cases"]["pass"]:
+            #         print(f"  Test {test_case['name']}")
+            #         print(f"    input: {test_case['input']}")
+            #         print(f"    expected: {test_case['expected']}")
+            #         print(f"    status: {test_case['status']}")
             
-            # Handle retry test cases
-            if "retry" in exec_res["test_cases"]:
-                print("Retry test cases:")
-                for test_case in exec_res["test_cases"]["retry"]:
-                    print(f"  Test {test_case['name']}")
-                    print(f"    input: {test_case['input']}")
-                    print(f"    expected: {test_case['expected']}")
-                    print(f"    status: {test_case['status']}")
+            # # Handle retry test cases
+            # if "retry" in exec_res["test_cases"]:
+            #     print("Retry test cases:")
+            #     for test_case in exec_res["test_cases"]["retry"]:
+            #         print(f"  Test {test_case['name']}")
+            #         print(f"    input: {test_case['input']}")
+            #         print(f"    expected: {test_case['expected']}")
+            #         print(f"    status: {test_case['status']}")
             
             # Update shared test cases
             shared["test_cases"] = exec_res["test_cases"]
         
         # Handle function suggestion
         if "function_suggestion" in exec_res:
-            # print("\nFunction suggestion:")
-            # for func in exec_res["function_suggestion"]:
-            #     print(func)
             shared["function_suggestion"] = exec_res["function_suggestion"]  # Use first suggestion
         
         # Handle test code
         if "test_code" in exec_res:
-            # print("New test code:")
-            # print(exec_res["test_code"])
             shared["test_code"] = exec_res["test_code"] 

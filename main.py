@@ -12,38 +12,38 @@ async def main():
     
     question = "what is the content in the file myMath.js!"
 
-    test_code = """
-    describe('add function', () => {
-        const add = async (a, b) => a + b;
+#     test_code = """
+#     describe('add function', () => {
+#         const add = async (a, b) => a + b;
         
-        test('Basic case - positive integers', async () => {
-            expect(await add(1, 1)).toBe(2);
-        });
+#         test('Basic case - positive integers', async () => {
+#             expect(await add(1, 1)).toBe(2);
+#         });
 
-        test('Basic case - positive integers', async () => {
-            expect(await add(1, 2)).toBe(2);
-        });
-    });
+#         test('Basic case - positive integers', async () => {
+#             expect(await add(1, 2)).toBe(2);
+#         });
+#     });
     
-    describe('subtract function', () => {
-        const subtract = async (a, b) => a - b;
+#     describe('subtract function', () => {
+#         const subtract = async (a, b) => a - b;
         
-        test('Basic case - positive integers', async () => {
-            expect(await add(1, 1)).toBe(1);
-        });
+#         test('Basic case - positive integers', async () => {
+#             expect(await add(1, 1)).toBe(1);
+#         });
 
-        test('Basic case - positive integers', async () => {
-            expect(await add(1, 2)).toBe(2);
-        });
-    });
+#         test('Basic case - positive integers', async () => {
+#             expect(await add(1, 2)).toBe(2);
+#         });
+#     });
     
-"""
+# """
     
     shared = {
         "question": question,
         "file": {},
         "analyze": {},
-        "test_code": test_code,
+        "test_code": "",
     }
 #     shared = {
 #         'question': 'what is the content in the file myMath.js!',
