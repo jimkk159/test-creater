@@ -159,13 +159,16 @@ async def execute_jest_test(test_code):
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                text=True
+                stderr=asyncio.subprocess.PIPE
             )
-            
+
             # Wait for process to complete and get output
             stdout, stderr = await process.communicate()
             
+            # Decode the output
+            stdout = stdout.decode('utf-8') if stdout else ""
+            stderr = stderr.decode('utf-8') if stderr else ""
+                        
             if process.returncode == 0:
                 return extract_failed_tests(stderr)
             else:
@@ -174,6 +177,7 @@ async def execute_jest_test(test_code):
         except FileNotFoundError:
             return "Error: Jest or npx command not found..."
         except Exception as e:
+            print(e)
             return f"An unexpected error occurred: {e}"
         finally:
             if os.path.exists(file_path):

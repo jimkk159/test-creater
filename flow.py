@@ -1,5 +1,5 @@
-from pocketflow import Flow
-from nodes import GetToolsNode, DecideToolNode, ExecuteToolNode, Analyze_Node, GenerateTestCases, ImplementFunction, RunTests, Revise, ReturnDefaultActionNode
+from pocketflow import Flow, AsyncFlow
+from nodes import AsyncNodeWrapper, GetToolsNode, DecideToolNode, ExecuteToolNode, Analyze_Node, GenerateTestCases, ImplementFunction, RunTests, Revise, ReturnDefaultActionNode
 
 def Read_and_find_file_flow():
     """Find the file and then read its content"""
@@ -12,7 +12,7 @@ def Read_and_find_file_flow():
     return_default_node = ReturnDefaultActionNode()
 
     # Connect nodes
-    get_tools_node - "decide" >> decide_node
+    get_tools_node >> decide_node
     decide_node - "tool" >> execute_node
     execute_node - "tool_result" >> decide_node
     # If decide_node returns anything other than "tool" (like default), go to return_default_node
@@ -20,19 +20,26 @@ def Read_and_find_file_flow():
 
 
     # Create flow starting with test generation
-    return Flow(start=get_tools_node)
+    return AsyncFlow(start=get_tools_node)
+
+# --- Flow Creation ---
+
+def run_test_flow():
+    """Creates and returns the parallel translation flow."""
+    run_tests = RunTests()
+    return AsyncFlow(start=run_tests)
 
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
 
     # Create flows or nodes 
     read_and_find_file_flow = Read_and_find_file_flow()
-    analyze_node = Analyze_Node()
-    generate_test_cases = GenerateTestCases()
-    implement_function = ImplementFunction()
-    run_tests = RunTests()
-    revise = Revise()
-    return_default_node = ReturnDefaultActionNode()
+    analyze_node = AsyncNodeWrapper(Analyze_Node())
+    generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
+    implement_function = AsyncNodeWrapper(ImplementFunction())
+    run_tests = run_test_flow()
+    revise = AsyncNodeWrapper(Revise())
+    return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
@@ -44,5 +51,4 @@ def auto_code_test_generate_flow():
     revise >> run_tests
 
     # Create flow starting with test generation
-    flow = Flow(start=read_and_find_file_flow)
-    return flow 
+    return AsyncFlow(start=read_and_find_file_flow)

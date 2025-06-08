@@ -5,30 +5,48 @@ import time
 import json
 import asyncio
 from dotenv import load_dotenv
-from pocketflow import Node, BatchNode
+from pocketflow import Node, AsyncNode, AsyncParallelBatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import get_tools, call_tool, extract_describe_blocks
+from utils.utils import get_tools, call_tool, extract_describe_blocks, save_to_file, cleanup_temp_files
+import aiofiles
+import random
 
 load_dotenv()
 
-MAX_ITERATION = 2
+MAX_ITERATION = 5
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
 allowed_dir=os.environ.get("ALLOW_READ_FILE_PATH")
+
+class AsyncNodeWrapper(AsyncNode):
+    def __init__(self, sync_node, max_retries=1, wait=0):
+        super().__init__(max_retries=max_retries, wait=wait)
+        self.sync_node = sync_node
+
+    async def prep_async(self, shared):
+        # Run sync prep in a thread pool to avoid blocking
+        return await asyncio.to_thread(self.sync_node.prep, shared)
+
+    async def exec_async(self, prep_res):
+        # Run sync exec in a thread pool
+        return await asyncio.to_thread(self.sync_node.exec, prep_res)
+
+    async def post_async(self, shared, prep_res, exec_res):
+        # Run sync post in a thread pool
+        return await asyncio.to_thread(self.sync_node.post, shared, prep_res, exec_res)
 
 class ReturnDefaultActionNode(Node):
     def post(self, shared, prep_res, exec_res):
         # This node simply returns the "default" action to the parent flow
         return "default"
-class GetToolsNode(Node):
-    def prep(self, shared):
+class GetToolsNode(AsyncNode):
+    async def prep_async(self, shared):
         """Initialize and get tools"""
         print("🔍 Getting available tools...")
-        
         # Path to the mcp server script relative to the workspace root
         relative_server_path = "utils/mcp_server.py"
-        
+
         # Get the absolute path of the workspace root
         # Assuming the workspace root is the current working directory when the script runs
         workspace_root = os.getcwd() 
@@ -43,16 +61,15 @@ class GetToolsNode(Node):
         # If the check passes, return the relative path
         return relative_server_path
 
-    def exec(self, server_path):
+    async def exec_async(self, server_path):
         """Retrieve tools from the MCP server"""
-        tools = get_tools(server_path)
+        tools = await get_tools(server_path)
         return tools
 
-    def post(self, shared, prep_res, exec_res):
+    async def post_async(self, shared, prep_res, exec_res):
         """Store tools and process to yamlResult node"""
         tools = exec_res
         shared["file"]["tools"] = tools
-        
         # Format tool information for later use
         tool_info = []
         for i, tool in enumerate(tools, 1):
@@ -68,12 +85,12 @@ class GetToolsNode(Node):
             tool_info.append(f"[{i}] {tool.name}\n  Description: {tool.description}\n  Parameters:\n" + "\n".join(params))
         
         shared["file"]["tool_info"] = "\n".join(tool_info)
-        return "decide"
 
 class DecideToolNode(Node):
     def prep(self, shared):
         """Prepare the prompt for LLM to process the question"""
         tool_info = shared["file"]["tool_info"]
+
         question = shared["question"]   
         pre_task_info = ""
         if  "file" in shared and "action" in shared["file"] : 
@@ -145,7 +162,6 @@ IMPORTANT:
         """Call LLM to process the question and decide which tool to use"""
         print(border)
         print("🤔 Analyzing question and deciding which tool to use...")
-
         response = call_llm(prompt)
         return response
 
@@ -166,7 +182,7 @@ IMPORTANT:
             # print(yamlResult)
 
             if shared["file"]["action"] == 'done':
-                answer = f"✅ FILE CONTENT:\n{shared["file"]['tool_result']}"
+                answer = f"✅ FILE CONTENT:\n{shared["file"]['tool_result']}".rstrip('\n')
                 shared["file"]["result"] = answer
                 print(border)
                 print(answer)
@@ -182,19 +198,19 @@ IMPORTANT:
             print("Raw response:", exec_res)
             return None
 
-class ExecuteToolNode(Node):
-    def prep(self, shared):
+class ExecuteToolNode(AsyncNode):
+    async def prep_async(self, shared):
         """Prepare tool execution parameters"""
         return shared["file"]["tool_name"], shared["file"]["parameters"]
 
-    def exec(self, inputs):
+    async def exec_async(self, inputs):
         """Execute the chosen tool"""
         tool_name, parameters = inputs
         print(f"🔧 Executing tool '{tool_name}' with parameters: {parameters}")
-        result = call_tool("utils/mcp_server.py", tool_name, parameters)
+        result = await call_tool("utils/mcp_server.py", tool_name, parameters)
         return result
 
-    def post(self, shared, prep_res, exec_res):
+    async def post_async(self, shared, prep_res, exec_res):
         # print(f"🔨MCP tool Response: {exec_res}")
         shared["file"]["tool_result"] = exec_res
         return "tool_result"
@@ -245,7 +261,6 @@ class Analyze_Node(Node):
         try:
             yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
             yamlResult = yaml.safe_load(yaml_str)
-            
             shared["functions"] = yamlResult.get("functions", "")
             print(border)
             print(f"⛏️ extracted functions: {shared["functions"]}")
@@ -260,15 +275,22 @@ class GenerateTestCases(Node):
         """Generate test case for later test code generate"""
         print(border)
         print("🧪 Generate test cases...")
+        if "functions" not in shared:
+            raise ValueError("No functions found in shared context")
+            
+        if not shared["functions"]:
+            raise ValueError("Functions list is empty")
+            
         return shared["functions"]
 
     def exec(self, functions):
-        prompt = f"""
-        ### CONTEXT
-        You are an assistant to help the Quality Assurance Engineer to generate test cases
+        try:
+            prompt = f"""
+            ### CONTEXT
+            You are an assistant to help the Quality Assurance Engineer to generate test cases
 
-        ## FUNCTIONS
-        {functions}
+            ## FUNCTIONS
+            {functions}
 
 Output in this YAML format with reasoning:
 ```yaml
@@ -289,43 +311,58 @@ test_cases:
         input: {{param1: value3, param2: value4}}
         expected: result2
 ```"""
-        response = call_llm(prompt)
-        yaml_str = response.split("```yaml")[1].split("```")[0].strip()
-        result = yaml.safe_load(yaml_str)
+            response = call_llm(prompt)
+            
+            # Extract YAML content
+            if "```yaml" not in response:
+                raise ValueError("LLM response missing YAML code block")
+                
+            yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            result = yaml.safe_load(yaml_str)
 
-        # Validation asserts
-        assert "test_cases" in result, "Result must have 'test_cases' field"
-        assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
+            # Validation asserts
+            assert "test_cases" in result, "Result must have 'test_cases' field"
+            assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
 
-        for function_name, test_case_list in result["test_cases"].items():
-            assert isinstance(function_name, str), f"Function name must be string"
+            for function_name, test_case_list in result["test_cases"].items():
+                assert isinstance(function_name, str), f"Function name must be string"
 
-            for i, test_case in enumerate(test_case_list):
-                assert "name" in test_case, f"{function_name} Test case {i} missing 'name' field"
-                assert isinstance(test_case["name"], str), f"{function_name} Test case {i} 'name' must be string"
-                assert "explain" in test_case, f"{function_name} Test case {i} missing 'explain' field"
-                assert isinstance(test_case["name"], str), f"{function_name} Test case {i} 'name' must be string"
-                assert "input" in test_case, f"{function_name} Test case {i} missing 'input' field"
-                assert isinstance(test_case["input"], dict), f"{function_name} Test case {i} 'input' must be dict"
-                assert "expected" in test_case, f"{function_name} Test case {i} missing 'expected' field"
-        
-        return result
+                for i, test_case in enumerate(test_case_list):
+                    assert "name" in test_case, f"{function_name} Test case {i} missing 'name' field"
+                    assert isinstance(test_case["name"], str), f"{function_name} Test case {i} 'name' must be string"
+                    assert "explain" in test_case, f"{function_name} Test case {i} missing 'explain' field"
+                    assert isinstance(test_case["explain"], str), f"{function_name} Test case {i} 'explain' must be string"
+                    assert "input" in test_case, f"{function_name} Test case {i} missing 'input' field"
+                    assert isinstance(test_case["input"], dict), f"{function_name} Test case {i} 'input' must be dict"
+                    assert "expected" in test_case, f"{function_name} Test case {i} missing 'expected' field"
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error generating test cases: {str(e)}")
+            print("Raw LLM response:", response if 'response' in locals() else "No response")
+            raise
 
     def post(self, shared, prep_res, exec_res):
-        shared["test_cases"] = exec_res["test_cases"]
-        
-        # Print all generated test cases
-        print(border)
-        print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
-        for function_name, test_case_list in exec_res["test_cases"].items():
-            print(f"-- Funtion: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
-            for i, test_case in enumerate(test_case_list, 1):
-                print(f"{i}. {test_case['name']}")
-                print(f"   explain: {test_case['explain']}")
-                print(f"   input: {test_case['input']}")
-                print(f"   expected: {test_case['expected']}")
-        print('-' * BORDER_LEN)
-        print("")
+        try:
+            shared["test_cases"] = exec_res["test_cases"]
+            
+            # Print all generated test cases
+            print(border)
+            print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
+            for function_name, test_case_list in exec_res["test_cases"].items():
+                print(f"-- Function: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
+                for i, test_case in enumerate(test_case_list, 1):
+                    print(f"{i}. {test_case['name']}")
+                    print(f"   explain: {test_case['explain']}")
+                    print(f"   input: {test_case['input']}")
+                    print(f"   expected: {test_case['expected']}")
+            print('-' * BORDER_LEN)
+            print("")
+            
+        except Exception as e:
+            print(f"Error in post-processing test cases: {str(e)}")
+            raise
 
 class ImplementFunction(Node):
     def prep(self, shared):
@@ -405,19 +442,23 @@ function_code: |
         
         # Print the implemented function
         # print(f"\n=== Implemented Function ===")
-        # print(exec_res)
+        # saved_path = save_to_file(shared["test_code"], "test_code.test.js")
+        # if(not shared["temp_file_path"]):
+        #     shared["temp_file_path"] = {}
+        # shared["temp_file_path"]["test_code"] = saved_path
+        # print(f"Saved test code to: {saved_path}")
 
-class RunTests(BatchNode):
-    def prep(self, shared):
+class RunTests(AsyncParallelBatchNode):
+    async def prep_async(self, shared):
         # Match each 'describe(...) { ... });' block
         print(border)
         print("🏃 Running test functions...")
         shared["max_iterations"] = shared.get("max_iteration", MAX_ITERATION)
         return extract_describe_blocks(shared["test_code"])
     
-    def exec(self, test_code):
-        output = execute_jest_test(test_code)
+    async def exec_async(self, test_code):
 
+        output = await execute_jest_test(test_code)
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)
@@ -459,9 +500,8 @@ class RunTests(BatchNode):
             "detail": data
         }
 
-    def post(self, shared, prep_res, exec_res_list):
+    async def post_async(self, shared, prep_res, exec_res_list):
         shared["iteration_count"] = shared.get("iteration_count", 0) + 1
-
         total_tests = 0
         passed_tests = 0
         failed_tests = 0
@@ -488,8 +528,8 @@ class RunTests(BatchNode):
         if failed_tests == 0:
             print("🎉All tests passed across all batches!")
             print("-" * len(title))
-            with open('output.test.js', 'w', encoding='utf-8') as tmp_file:
-                tmp_file.write(shared["test_code"])
+            save_to_file(shared["test_code"], "final.test.js")
+            cleanup_temp_files(shared, 'temp_file_paths')
             return 'success' # All tests passed
 
         # If there are failed tests, print details
