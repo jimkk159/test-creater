@@ -55,9 +55,17 @@ class Analyze_Node(Node):
         try:
             yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
             yamlResult = yaml.safe_load(yaml_str)
-            shared["functions"] = yamlResult.get("functions", "")
+            
+            # Convert list of functions to dictionary
+            functions_dict = {}
+            for func in yamlResult.get("functions", []):
+                for func_name, func_content in func.items():
+                    functions_dict[func_name] = func_content
+            
+            shared["functions"] = functions_dict
+            print(shared["functions"])
             print(border)
-            print(f"⛏️ extracted functions: {shared["functions"]}")
+            print(f"⛏️ extracted functions: {list(functions_dict.keys())}")
             
         except Exception as e:
             print(f"❌ Error parsing LLM response on analyze: {e}")
@@ -67,15 +75,17 @@ class Analyze_Node(Node):
 class GenerateTestCases(Node):
     def prep(self, shared):
         """Generate test case for later test code generate"""
-        print(border)
-        print("🧪 Generate test cases...")
         if "functions" not in shared:
             raise ValueError("No functions found in shared context")
             
         if not shared["functions"]:
             raise ValueError("Functions list is empty")
-            
-        return shared["functions"]
+        
+        # Get function info from params instead of shared
+        function_name = self.params["function_name"]
+        function_content = self.params["function_content"]
+        print(f"{border}\n🧪 Generate {function_name} test cases...")
+        return {function_name: function_content}
 
     def exec(self, functions):
         try:
@@ -139,8 +149,10 @@ test_cases:
 
     def post(self, shared, prep_res, exec_res):
         try:
-            shared["test_cases"] = exec_res["test_cases"]
-            
+            function_name = self.params["function_name"]
+            if "test_cases" not in shared:
+                shared["test_cases"] = {}
+            shared["test_cases"][function_name] = exec_res["test_cases"][function_name]
             # Print all generated test cases
             print(border)
             print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
@@ -157,24 +169,24 @@ test_cases:
         except Exception as e:
             print(f"Error in post-processing test cases: {str(e)}")
             raise
-
 class ImplementFunction(Node):
     def prep(self, shared):
         print(border)
         print("🏗️ Implement the test case functions...")
-        return shared["functions"], shared["test_cases"]
+        function_name = self.params["function_name"]
+
+        return function_name, shared["functions"][function_name], shared["test_cases"][function_name]
 
     def exec(self, input):
-        functions, test_cases = input
+        function_name, functions, test_cases = input
 
         # Format test cases nicely for the prompt
         formatted_tests = ""
-        for function_name, test_case_list in test_cases.items():
-            for i, test in enumerate(test_case_list, 1):
-                formatted_tests += f"- {function_name}:"
-                formatted_tests += f"{i}. {test['name']}\n"
-                formatted_tests += f"   input: {test['input']}\n"
-                formatted_tests += f"   expected: {test['expected']}\n\n"
+        for i, test in enumerate(test_cases, 1):
+            formatted_tests += f"- {function_name}:"
+            formatted_tests += f"{i}. {test['name']}\n"
+            formatted_tests += f"   input: {test['input']}\n"
+            formatted_tests += f"   expected: {test['expected']}\n\n"
         
         example= """
 - original function:
@@ -216,23 +228,34 @@ function_code: |
 
 ### Example: |
     {example}
-
-
 """
         
+        try:
+            response = call_llm(prompt)
+            
+            # Try to extract YAML content
+            if "```yaml" not in response:
+                raise ValueError("LLM response missing YAML code block")
+                
+            yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            result = yaml.safe_load(yaml_str)
 
-        response = call_llm(prompt)
-        yaml_str = response.split("```yaml")[1].split("```")[0].strip()
-        result = yaml.safe_load(yaml_str)
-
-        # Validation asserts
-        assert "function_code" in result, "Result must have 'function_code' field"
-        assert isinstance(result["function_code"], str), "function_code must be string"
-        
-        return result["function_code"]
+            # Validation asserts
+            assert "function_code" in result, "Result must have 'function_code' field"
+            assert isinstance(result["function_code"], str), "function_code must be string"
+            
+            return result["function_code"]
+            
+        except Exception as e:
+            print(f"Error in exec: {str(e)}")
+            print("Raw LLM response:", response if 'response' in locals() else "No response")
+            raise
 
     def post(self, shared, prep_res, exec_res):
-        shared["test_code"] = exec_res
+        function_name = self.params["function_name"]
+        if "test_code" not in shared:
+            shared["test_code"] = {}
+        shared["test_code"][function_name] = exec_res
 
 class RunTests(AsyncParallelBatchNode):
     async def prep_async(self, shared):
@@ -240,12 +263,15 @@ class RunTests(AsyncParallelBatchNode):
         print(border)
         print("🏃 Running test functions...")
         shared["max_iterations"] = shared.get("max_iteration", MAX_ITERATION)
+        function_name = self.params["function_name"]
         
         # Initialize iteration counts for each test suite if not exists
         if "suite_iterations" not in shared:
             shared["suite_iterations"] = {}
-            
-        return extract_describe_blocks(shared["test_code"])
+            if function_name not in shared["suite_iterations"]:
+                shared["suite_iterations"][function_name] = {}
+
+        return extract_describe_blocks(shared["test_code"][function_name])
     
     async def exec_async(self, test_code):
         # Extract suite name from test code
@@ -305,14 +331,18 @@ class RunTests(AsyncParallelBatchNode):
         for batch_result in exec_res_list:
             if isinstance(batch_result, dict) and "status" in batch_result:
                 status = batch_result["status"]
+                function_name = self.params["function_name"]
                 suite_name = batch_result.get("suite", "unknown_suite")
-                
+
                 # Initialize suite iteration count if not exists
-                if suite_name not in shared["suite_iterations"]:
-                    shared["suite_iterations"][suite_name] = 0
-                
+                if function_name not in shared["suite_iterations"]:
+                    shared["suite_iterations"][function_name] = {}
+                    
+                if suite_name not in shared["suite_iterations"][function_name]:
+                    shared["suite_iterations"][function_name][suite_name] = 0
+                    
                 # Increment iteration count for this suite
-                shared["suite_iterations"][suite_name] += 1
+                shared["suite_iterations"][function_name][suite_name] += 1
                 
                 total_tests += status.get("total", 0)
                 passed_tests += status.get("passed", 0)
@@ -330,17 +360,28 @@ class RunTests(AsyncParallelBatchNode):
         if failed_tests == 0:
             print("🎉All tests passed across all batches!")
             print("-" * len(title))
-            save_to_file(shared["test_code"], "final.test.js")
-            cleanup_temp_files(shared, 'temp_file_paths')
+            
+            test_codes_to_file = ''
+            for i, func_name in enumerate(shared["test_code"]):
+                test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
+            save_to_file(test_codes_to_file, "final.test.js")
             return 'success' # All tests passed
 
-        shared["passed"] = passed_tests
-        shared["total_tests"] = total_tests
-        shared["failed_tests"] = all_failed_details
+        if "passed" not in shared:
+            shared["passed"] = {}
+        if "total_tests" not in shared:
+            shared["total_tests"] = {}
+        if "failed_tests" not in shared:
+            shared["failed_tests"]= {}
+
+        shared["passed"][function_name] = passed_tests
+        shared["total_tests"][function_name] = total_tests
+        shared["failed_tests"][function_name] = all_failed_details
+        
         # Check if any suite has reached max iterations
         max_iterations_reached = any(
-            shared["suite_iterations"][suite] >= shared["max_iterations"]
-            for suite in shared["suite_iterations"]
+            shared["suite_iterations"][function_name][suite] >= shared["max_iterations"]
+            for suite in shared["suite_iterations"][function_name]
         )
 
         if max_iterations_reached:
@@ -355,41 +396,45 @@ class Revise(Node):
         print(border)
         print("💭 AI review the test result...")
         failed_tests = [r for r in shared["failed_tests"] ]
-
+        
+        function_name = self.params["function_name"]
         if 'iteration_count' not in shared:
-            shared['iteration_count'] = 0
+            shared['iteration_count'] = {}
+    
+        if function_name not in shared['iteration_count']:
+            shared['iteration_count'][function_name] = 0
         else: 
-            shared['iteration_count'] += 1
-            
-        test_cases = shared.get("test_cases", "") 
-        failed_tests = shared.get("failed_tests", "") 
-
+            shared['iteration_count'][function_name] += 1
+        
+        test_cases = shared.get("test_cases", {}) 
+        failed_tests = shared.get("failed_tests", {}) 
+        
         # Format current test cases nicely
         formatted_tests = ""
-        for i, func_name in enumerate(test_cases, 1):
-            for j, test in enumerate(test_cases[func_name], 1):
-                formatted_tests += f"{i}. {test['name']}\n"
-                formatted_tests += f"   explain: {test['explain']}\n"
-                formatted_tests += f"   input: {test['input']}\n"
-                formatted_tests += f"   expected: {test['expected']}\n\n"
+        print(function_name, test_cases[function_name])
+        for i, test in enumerate(test_cases[function_name], 1):
+            formatted_tests += f"{i}. {test['name']}\n"
+            formatted_tests += f"   explain: {test['explain']}\n"
+            formatted_tests += f"   input: {test['input']}\n"
+            formatted_tests += f"   expected: {test['expected']}\n\n"
         
         # Format failed tests nicely
         formatted_failures = ""
-        for i, result in enumerate(failed_tests, 1):
+        for i, result in enumerate(failed_tests[function_name], 1):
             formatted_failures += f"{i}. {result['test_case']}:\n"
             formatted_failures += f"   received: {result['received']}\n"
             formatted_failures += f"   expected: {result['expected']}\n"
             formatted_failures += f"   description: {result['description']}\n\n"
 
         return {
-            "functions": shared.get("functions", ""),
-            "test_cases": shared.get("test_cases", ""),
-            "test_code": shared.get("test_code", ""),
-            "max_iterations": shared.get("max_iterations", ""),
+            "functions": shared.get("functions", {}),
+            "test_cases": shared.get("test_cases", {}),
+            "test_code": shared.get("test_code", {}),
+            "max_iterations": shared.get("max_iterations", 1),
             "iteration_count": shared.get("iteration_count", 0),
             "is_passed": shared.get("passed", 0) == shared.get("total_tests", 0),
-            "passed": shared.get("passed", ""),
-            "total_tests": shared.get("total_tests", ""),
+            "passed": shared.get("passed", {}),
+            "total_tests": shared.get("total_tests", {}),
             "failed_tests": failed_tests,
             "formatted_tests": formatted_tests,
             "formatted_failures": formatted_failures
@@ -542,7 +587,6 @@ test_code:  # Include this if revising function
             assert isinstance(result["function_suggestion"], list), "function_suggestion must be a list"
             for func in result["function_suggestion"]:
                 assert isinstance(func, str), "function_suggestion items must be strings"
-                assert "async" in func, "Function must be async"
         
         if "test_code" in result:
             assert isinstance(result["test_code"], str), "test_code must be string"
@@ -553,38 +597,46 @@ test_code:  # Include this if revising function
         return result
 
     def post(self, shared, prep_res, exec_res):
+        function_name = self.params["function_name"]
+
         # Print what is being revised
         # print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
 
         # Handle test case revisions
         if "test_cases" in exec_res:
-            # print("Revising test cases:")
+            print("Revising test cases:")
             
-            # # Handle pass test cases
-            # if "pass" in exec_res["test_cases"]:
-            #     print("Passing test cases:")
-            #     for test_case in exec_res["test_cases"]["pass"]:
-            #         print(f"  Test {test_case['name']}")
-            #         print(f"    input: {test_case['input']}")
-            #         print(f"    expected: {test_case['expected']}")
-            #         print(f"    status: {test_case['status']}")
+            # Handle pass test cases
+            if "pass" in exec_res["test_cases"]:
+                print("Passing test cases:")
+                for test_case in exec_res["test_cases"]["pass"]:
+                    print(f"  Test {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
             
-            # # Handle retry test cases
-            # if "retry" in exec_res["test_cases"]:
-            #     print("Retry test cases:")
-            #     for test_case in exec_res["test_cases"]["retry"]:
-            #         print(f"  Test {test_case['name']}")
-            #         print(f"    input: {test_case['input']}")
-            #         print(f"    expected: {test_case['expected']}")
-            #         print(f"    status: {test_case['status']}")
+            # Handle retry test cases
+            if "retry" in exec_res["test_cases"]:
+                print("Retry test cases:")
+                for test_case in exec_res["test_cases"]["retry"]:
+                    print(f"  Test {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
             
             # Update shared test cases
-            shared["test_cases"] = exec_res["test_cases"]
+            shared["test_cases"][function_name] = exec_res["test_cases"]
         
+        if  "function_suggestion" not in shared:
+            shared["function_suggestion"] = {}
+            
         # Handle function suggestion
         if "function_suggestion" in exec_res:
-            shared["function_suggestion"] = exec_res["function_suggestion"]  # Use first suggestion
+            shared["function_suggestion"][function_name] = exec_res["function_suggestion"]  # Use first suggestion
         
         # Handle test code
         if "test_code" in exec_res:
-            shared["test_code"] = exec_res["test_code"] 
+            if "test_code" not in shared:
+                shared["test_code"] = {}
+            function_name = self.params["function_name"]
+            shared["test_code"][function_name] = exec_res["test_code"] 

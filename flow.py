@@ -1,4 +1,4 @@
-from pocketflow import Flow, AsyncFlow
+from pocketflow import AsyncFlow, AsyncParallelBatchFlow
 from nodes.nodes import AsyncNodeWrapper, GetToolsNode, DecideToolNode, ExecuteToolNode, Analyze_Node, GenerateTestCases, ImplementFunction, RunTests, Revise, ReturnDefaultActionNode
 
 def Read_and_find_file_flow():
@@ -25,34 +25,41 @@ def Read_and_find_file_flow():
 
 def run_test_flow():
     """Creates and returns the parallel translation flow."""
+    generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
+    implement_function = AsyncNodeWrapper(ImplementFunction(max_retries=2))
     run_tests = RunTests()
-    revise = AsyncNodeWrapper(Revise())
+    revise = AsyncNodeWrapper(Revise(max_retries=2))
     return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
-
+    
+    generate_test_cases >> implement_function
+    implement_function >> run_tests
     run_tests - "failure" >> revise
     run_tests - "success"  >> return_default_node
     revise >> run_tests
-    
-    flow =  AsyncFlow(start=run_tests)
-    
-    return flow
+        
+    return AsyncFlow(start=generate_test_cases)
+
+class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
+    async def prep_async(self, shared):
+        # Get all functions from shared store
+        functions = shared.get("functions", {})
+        # Create a list of params for each function
+        return [{"function_name": name, "function_content": content} 
+                for name, content in functions.items()]
 
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
 
     # Create flows or nodes 
-    read_and_find_file_flow = Read_and_find_file_flow()
-    analyze_node = AsyncNodeWrapper(Analyze_Node())
-    generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
-    implement_function = AsyncNodeWrapper(ImplementFunction())
-    run_tests = run_test_flow()
+    # read_and_find_file_flow = Read_and_find_file_flow()
+    # analyze_node = AsyncNodeWrapper(Analyze_Node())
+
+    # Create a batch flow for running tests on each function
+    function_parallel_batch = FunctionParallelBatchFlow(start=run_test_flow())
 
     # Connect nodes
-    read_and_find_file_flow >> analyze_node
-    analyze_node >> generate_test_cases
-    generate_test_cases >> implement_function
-    implement_function >> run_tests
-
+    # read_and_find_file_flow >> analyze_node
+    # analyze_node >> function_parallel_batch
 
     # Create flow starting with test generation
-    return AsyncFlow(start=read_and_find_file_flow)
+    return AsyncFlow(start=function_parallel_batch)
