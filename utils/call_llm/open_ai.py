@@ -18,7 +18,7 @@ def _call_llm_sync(prompt):
 async def _call_llm_async(prompt):
     client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     r = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[{"role": "user", "content": prompt}]
     )
     return r.choices[0].message.content

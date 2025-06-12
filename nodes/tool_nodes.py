@@ -1,7 +1,7 @@
 import os
 import yaml
 from myPocketFlow import Node, AsyncNode
-from utils.call_llm.open_ai import call_llm
+from utils.call_llm.xai import call_llm
 from utils.utils import get_tools, call_tool, get_error_prompt
 
 BORDER_LEN = 96
@@ -142,6 +142,7 @@ IMPORTANT:
         try:
             """Extract yamlResult from YAML and save to shared context"""
             yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+
             return yaml.safe_load(yaml_str)
             
         except Exception as e:
