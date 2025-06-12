@@ -2,7 +2,7 @@ import os
 import yaml
 from myPocketFlow import Node, AsyncNode
 from utils.call_llm.open_ai import call_llm
-from utils.utils import get_tools, call_tool
+from utils.utils import get_tools, call_tool, get_error_prompt
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
@@ -37,7 +37,11 @@ class GetToolsNode(AsyncNode):
     async def post_async(self, shared, prep_res, exec_res):
         """Store tools and process to yamlResult node"""
         tools = exec_res
-        shared["file"]["tools"] = tools
+        if "file" not in shared:
+            shared["file"] = {}
+        if "tools" not in shared["file"]:
+            shared["file"]["tools"] = []
+        shared["file"]["tools"].append(tools)
         # Format tool information for later use
         tool_info = []
         for i, tool in enumerate(tools, 1):
@@ -76,6 +80,8 @@ class DecideToolNode(Node):
                 {shared["file"].get("tool_result", "")}
             """ 
 
+        error_prompt = get_error_prompt(shared, ["error", 'decide'])
+
         prompt = (f"""
 ### CONTEXT
 You are an assistant that can use tools via Model Context Protocol (MCP).
@@ -87,6 +93,8 @@ You are an assistant that can use tools via Model Context Protocol (MCP).
 Answer this question: "{question}"
 
 {pre_task_info}
+
+{error_prompt}
 
 ## NEXT ACTION
 Analyze the question, 
@@ -131,18 +139,23 @@ IMPORTANT:
         print(border)
         print("🤔 Analyzing question and deciding which tool to use...")
         response = call_llm(prompt)
-        return response
+        try:
+            """Extract yamlResult from YAML and save to shared context"""
+            yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            return yaml.safe_load(yaml_str)
+            
+        except Exception as e:
+            print(f"❌ Error parsing LLM response on reading file: {e}")
+            print("Raw response:", response)
+            raise
 
     def post(self, shared, prep_res, exec_res):
         """Extract yamlResult from YAML and save to shared context"""
         try:
-            yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
-            yamlResult = yaml.safe_load(yaml_str)
-            
-            shared["file"]["action"] = yamlResult.get("action", "")
-            shared["file"]["tool_name"] = yamlResult.get("tool", "")
-            shared["file"]["parameters"] = yamlResult.get("parameters", "")
-            shared["file"]["thinking"] = yamlResult.get("thinking", "")
+            shared["file"]["action"] = exec_res.get("action", "")
+            shared["file"]["tool_name"] = exec_res.get("tool", "")
+            shared["file"]["parameters"] = exec_res.get("parameters", "")
+            shared["file"]["thinking"] = exec_res.get("thinking", "")
             print(border)
             print(f"🎬 Selected action: {shared["file"]["action"]}")
 
@@ -153,15 +166,13 @@ IMPORTANT:
                 print(answer)
                 return "default"
             elif shared["file"]["action"] == 'tool':
-                print(f"💡 Selected tool: {yamlResult['tool']}")
-                print(f"🔢 Extracted parameters: {yamlResult['parameters']}")
+                print(f"💡 Selected tool: {exec_res['tool']}")
+                print(f"🔢 Extracted parameters: {exec_res['parameters']}")
                 return "tool"
-            return "error"
-            
         except Exception as e:
             print(f"❌ Error parsing LLM response on reading file: {e}")
             print("Raw response:", exec_res)
-            return None
+            raise
 
 class ExecuteToolNode(AsyncNode):
     async def prep_async(self, shared):

@@ -10,6 +10,9 @@ def Read_and_find_file_flow():
     decide_node = DecideToolNode()
     execute_node = ExecuteToolNode()
 
+    # Error handling
+    decide_node - 'error' >> decide_node
+
     # Create the final node to return "default"
     return_default_node = ReturnDefaultActionNode()
 
@@ -17,6 +20,7 @@ def Read_and_find_file_flow():
     get_tools_node >> decide_node
     decide_node - "tool" >> execute_node
     execute_node - "tool_result" >> decide_node
+
     # If decide_node returns anything other than "tool" (like default), go to return_default_node
     decide_node >> return_default_node # This connects the default action of decide_node
 
@@ -32,6 +36,11 @@ def run_test_flow():
     revise = AsyncNodeWrapper(Revise(max_retries=2))
     return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
     
+    # Error handling
+    generate_test_cases - 'error' >> generate_test_cases
+    implement_function - 'error' >> implement_function
+    revise - 'error' >> revise
+
     generate_test_cases >> implement_function
     implement_function >> run_tests
     run_tests - "failure" >> revise

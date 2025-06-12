@@ -41,11 +41,6 @@ async def main():
     
     shared = {
         "question": question,
-        "file": {},
-        "analyze": {},
-        "test_code": {},
-        "test_cases": {},
-        "functions": {}
     }
     # shared = {
     #   "question": "what is the content in the file myMath.js!",

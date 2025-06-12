@@ -189,6 +189,25 @@ def cleanup_temp_files(shared, target):
                 print(f"Error deleting file {file_path}: {e}")
     return deleted_files
 
+def get_error_value(shared, keys):
+    current = shared
+    for i, key in enumerate(keys):
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    return current
+
+def get_error_prompt(shared, keys):
+    error = get_error_value(shared, keys)
+    error_prompt = ""
+    if error:
+        error_prompt = f"""
+        ### PREVIOUS ERROR
+
+        {error}
+        """
+    return error_prompt
+
 if __name__ == "__main__":
     asyncio.run(main())
 

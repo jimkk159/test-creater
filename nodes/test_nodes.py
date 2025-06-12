@@ -3,7 +3,7 @@ import yaml
 from myPocketFlow import Node, AsyncParallelBatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import extract_describe_blocks, save_to_file, cleanup_temp_files
+from utils.utils import extract_describe_blocks
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
@@ -14,11 +14,10 @@ class Analyze_Node(Node):
         """Analyze files for later test generate"""
         print(border)
         print("🔍 Analyze the file content...")
+        if "analyze" not in shared:
+            shared["analyze"] = {}
         shared["analyze"]["file_content"] = shared["file"]["tool_result"]
 
-        return shared["file"]["tool_result"]
-
-    def exec(self, file_content):
         """Tell the llm to extract the function need to be test"""
 
         prompt = (f"""
@@ -29,7 +28,7 @@ class Analyze_Node(Node):
     Extract the function in the file
 
     ### FILE CONTENT
-    {file_content}
+    {shared["file"]["tool_result"]}
 
     ## NEXT ACTION
     EXtract functions in the file
@@ -45,32 +44,36 @@ class Analyze_Node(Node):
     IMPORTANT: 
     1. Use proper indentation (4 spaces) for multi-line fields
     2. Use the | character for multi-line text fields
+    3. If you got error, just try to fix the error and try again.
+    4. If you think you can't handle the error, just return the error action.
     """
             )
 
-        response = call_llm(prompt)
-        return response
+        return prompt
 
-    def post(self, shared, prep_res, exec_res):
+    def exec(self, prompt):
+        response = call_llm(prompt)
         try:
-            yaml_str = exec_res.split("```yaml")[1].split("```")[0].strip()
-            yamlResult = yaml.safe_load(yaml_str)
-            
+            yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            yamlResult = yaml.safe_load(yaml_str)   
+
             # Convert list of functions to dictionary
             functions_dict = {}
             for func in yamlResult.get("functions", []):
                 for func_name, func_content in func.items():
                     functions_dict[func_name] = func_content
             
-            shared["functions"] = functions_dict
-            print(shared["functions"])
-            print(border)
-            print(f"⛏️ extracted functions: {list(functions_dict.keys())}")
-            
+            return functions_dict
+
         except Exception as e:
             print(f"❌ Error parsing LLM response on analyze: {e}")
-            print("Raw response:", exec_res)
-            return None
+            print("Raw response:", response)
+            raise
+
+    def post(self, shared, prep_res, exec_res):
+        shared["functions"] = exec_res
+        print(border)
+        print(f"⛏️ extracted functions: {list(exec_res.keys())}")
 
 class GenerateTestCases(Node):
     def prep(self, shared):
@@ -81,20 +84,18 @@ class GenerateTestCases(Node):
         if not shared["functions"]:
             raise ValueError("Functions list is empty")
         
+
         # Get function info from params instead of shared
         function_name = self.params["function_name"]
         function_content = self.params["function_content"]
         print(f"{border}\n🧪 Generate {function_name} test cases...")
-        return {function_name: function_content}
 
-    def exec(self, functions):
-        try:
-            prompt = f"""
+        prompt = f"""
             ### CONTEXT
             You are an assistant to help the Quality Assurance Engineer to generate test cases
 
             ## FUNCTIONS
-            {functions}
+            {function_name}: {function_content}
 
 Output in this YAML format with reasoning:
 ```yaml
@@ -115,8 +116,12 @@ test_cases:
         input: {{param1: value3, param2: value4}}
         expected: result2
 ```"""
-            response = call_llm(prompt)
-            
+        
+        return prompt
+
+    def exec(self, prompt):
+        response = call_llm(prompt)
+        try:
             # Extract YAML content
             if "```yaml" not in response:
                 raise ValueError("LLM response missing YAML code block")
@@ -168,19 +173,17 @@ test_cases:
             
         except Exception as e:
             print(f"Error in post-processing test cases: {str(e)}")
-            raise
+            return 'error'
+
 class ImplementFunction(Node):
     def prep(self, shared):
         print(border)
         print("🏗️ Implement the test case functions...")
         function_name = self.params["function_name"]
 
-        return function_name, shared["functions"][function_name], shared["test_cases"][function_name]
+        function_name, functions, test_cases = function_name, shared["functions"][function_name], shared["test_cases"][function_name]
 
-    def exec(self, input):
-        function_name, functions, test_cases = input
 
-        # Format test cases nicely for the prompt
         formatted_tests = ""
         for i, test in enumerate(test_cases, 1):
             formatted_tests += f"- {function_name}:"
@@ -229,10 +232,12 @@ function_code: |
 ### Example: |
     {example}
 """
-        
+
+        return prompt
+
+    def exec(self, prompt):
+        response = call_llm(prompt)
         try:
-            response = call_llm(prompt)
-            
             # Try to extract YAML content
             if "```yaml" not in response:
                 raise ValueError("LLM response missing YAML code block")
@@ -405,6 +410,7 @@ class Revise(Node):
         
         # Format current test cases nicely
         formatted_tests = ""
+        print(test_cases[function_name])
         for i, test in enumerate(test_cases[function_name], 1):
             formatted_tests += f"{i}. {test['name']}\n"
             formatted_tests += f"   explain: {test['explain']}\n"
@@ -419,21 +425,6 @@ class Revise(Node):
             formatted_failures += f"   expected: {result['expected']}\n"
             formatted_failures += f"   description: {result['description']}\n\n"
 
-        return {
-            "functions": shared.get("functions", {}),
-            "test_cases": shared.get("test_cases", {}),
-            "test_code": shared.get("test_code", {}),
-            "max_iterations": shared.get("max_iterations", 1),
-            "iteration_count": shared.get("iteration_count", 0),
-            "is_passed": shared.get("passed", 0) == shared.get("total_tests", 0),
-            "passed": shared.get("passed", {}),
-            "total_tests": shared.get("total_tests", {}),
-            "failed_tests": failed_tests,
-            "formatted_tests": formatted_tests,
-            "formatted_failures": formatted_failures
-        }
-
-    def exec(self, inputs):
         prompt = f"""
 You are a QA engineer to check and fix the test code result. 
 
@@ -464,13 +455,13 @@ Your action choice: [pass, review, error]
 ### TEST RESULT INFORMATION
 
     Current test cases:
-    {inputs["formatted_tests"] if inputs["formatted_tests"] else "No test cases available"}
+    {shared.get("test_cases", {}) if shared.get("test_cases", {}) else "No test cases available"}
 
     Current function:
-    {f"```javascript\n{inputs['functions']}\n```" if inputs['functions'] else 'No functions available'}
+    {f"```javascript\n{shared.get("functions", {})}\n```" if shared.get("functions", {}) else 'No functions available'}
 
     Failed tests:
-    {inputs["formatted_failures"]}
+    {formatted_failures}
 
 Output in this YAML format:
 ```yaml
@@ -544,50 +535,59 @@ test_code:  # Include this if revising function
     1. You must have the retry and pass part in the test_cases, even there aren't anything inside.
     2. function_suggestion must be a list, even it only has one.
 ```"""
+
+        return prompt
+
+    def exec(self, prompt):
         response = call_llm(prompt)
-        yaml_str = response.split("```yaml")[1].split("```")[0].strip()
-        result = yaml.safe_load(yaml_str)
+        try:
+            yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            result = yaml.safe_load(yaml_str)
 
-        # Validation asserts
-        assert "action" in result, "Result must have 'action' field"
-        assert result["action"] in ["done", "review", "error"], "action must be one of: done, review, error"
-        assert "thinking" in result, "Result must have 'thinking' field"
-        assert "thinking" in result, "Result must have 'thinking' field"
-        assert isinstance(result["thinking"], str), "thinking must be a string"
-        
-        if "test_cases" in result:
-            assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
-            assert "pass" in result["test_cases"], "test_cases must have 'pass' category"
-            assert "retry" in result["test_cases"], "test_cases must have 'retry' category"
+            # Validation asserts
+            assert "action" in result, "Result must have 'action' field"
+            assert result["action"] in ["done", "review", "error"], "action must be one of: done, review, error"
+            assert "thinking" in result, "Result must have 'thinking' field"
+            assert "thinking" in result, "Result must have 'thinking' field"
+            assert isinstance(result["thinking"], str), "thinking must be a string"
             
-            # Validate pass test cases
-            for test_case in result["test_cases"]["pass"]:
-                assert "name" in test_case, f"Test case missing 'name' field"
-                assert "input" in test_case, f"Test case missing 'input' field"
-                assert "expected" in test_case, f"Test case missing 'expected' field"
-                assert "status" in test_case, f"Test case missing 'status' field"
-                assert test_case["status"] == "ok", f"Pass test case status must be 'ok'"
+            if "test_cases" in result:
+                assert isinstance(result["test_cases"], dict), "test_cases must be a dictionary"
+                assert "pass" in result["test_cases"], "test_cases must have 'pass' category"
+                assert "retry" in result["test_cases"], "test_cases must have 'retry' category"
                 
-            # Validate retry test cases
-            for test_case in result["test_cases"]["retry"]:
-                assert "name" in test_case, f"Test case missing 'name' field"
-                assert "input" in test_case, f"Test case missing 'input' field"
-                assert "expected" in test_case, f"Test case missing 'expected' field"
-                assert "status" in test_case, f"Test case missing 'status' field"
-                assert test_case["status"] == "fail", f"Retry test case status must be 'fail'"
-        
-        if "function_suggestion" in result:
-            assert isinstance(result["function_suggestion"], list), "function_suggestion must be a list"
-            for func in result["function_suggestion"]:
-                assert isinstance(func, str), "function_suggestion items must be strings"
-        
-        if "test_code" in result:
-            assert isinstance(result["test_code"], str), "test_code must be string"
-            assert "describe" in result["test_code"], "Test code must include describe block"
-            assert "test(" in result["test_code"], "Test code must include test cases"
-            assert "expect" in result["test_code"], "Test code must include expect statements"
+                # Validate pass test cases
+                for test_case in result["test_cases"]["pass"]:
+                    assert "name" in test_case, f"Test case missing 'name' field"
+                    assert "input" in test_case, f"Test case missing 'input' field"
+                    assert "expected" in test_case, f"Test case missing 'expected' field"
+                    assert "status" in test_case, f"Test case missing 'status' field"
+                    assert test_case["status"] == "ok", f"Pass test case status must be 'ok'"
+                    
+                # Validate retry test cases
+                for test_case in result["test_cases"]["retry"]:
+                    assert "name" in test_case, f"Test case missing 'name' field"
+                    assert "input" in test_case, f"Test case missing 'input' field"
+                    assert "expected" in test_case, f"Test case missing 'expected' field"
+                    assert "status" in test_case, f"Test case missing 'status' field"
+                    assert test_case["status"] == "fail", f"Retry test case status must be 'fail'"
+            
+            if "function_suggestion" in result:
+                assert isinstance(result["function_suggestion"], list), "function_suggestion must be a list"
+                for func in result["function_suggestion"]:
+                    assert isinstance(func, str), "function_suggestion items must be strings"
+            
+            if "test_code" in result:
+                assert isinstance(result["test_code"], str), "test_code must be string"
+                assert "describe" in result["test_code"], "Test code must include describe block"
+                assert "test(" in result["test_code"], "Test code must include test cases"
+                assert "expect" in result["test_code"], "Test code must include expect statements"
 
-        return result
+            return result
+        except Exception as e:
+            print(f"Error in exec: {str(e)}")
+            print("Raw LLM response:", response if 'response' in locals() else "No response")
+            raise
 
     def post(self, shared, prep_res, exec_res):
         function_name = self.params["function_name"]
