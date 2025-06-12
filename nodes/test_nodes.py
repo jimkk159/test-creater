@@ -3,7 +3,7 @@ import yaml
 from myPocketFlow import Node, AsyncParallelBatchNode
 from utils.call_llm.open_ai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import extract_describe_blocks
+from utils.utils import extract_describe_blocks, get_error_prompt
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
@@ -157,7 +157,7 @@ test_cases:
             function_name = self.params["function_name"]
             if "test_cases" not in shared:
                 shared["test_cases"] = {}
-            shared["test_cases"][function_name] = exec_res["test_cases"][function_name]
+            shared["test_cases"][function_name] = { 'init': exec_res["test_cases"][function_name]}
             # Print all generated test cases
             # print(border)
             # print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
@@ -181,7 +181,7 @@ class ImplementFunction(Node):
         print("🏗️ Implement the test case functions...")
         function_name = self.params["function_name"]
 
-        function_name, functions, test_cases = function_name, shared["functions"][function_name], shared["test_cases"][function_name]
+        function_name, functions, test_cases = function_name, shared["functions"][function_name], shared["test_cases"][function_name]["init"]
 
 
         formatted_tests = ""
@@ -284,7 +284,7 @@ class RunTests(AsyncParallelBatchNode):
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
 
         output = await execute_jest_test(test_code)
-
+        
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)
@@ -410,12 +410,15 @@ class Revise(Node):
         
         # Format current test cases nicely
         formatted_tests = ""
-        print(test_cases[function_name])
-        for i, test in enumerate(test_cases[function_name], 1):
-            formatted_tests += f"{i}. {test['name']}\n"
-            formatted_tests += f"   explain: {test['explain']}\n"
-            formatted_tests += f"   input: {test['input']}\n"
-            formatted_tests += f"   expected: {test['expected']}\n\n"
+        count = 0
+        for _, tests in test_cases[function_name].items():
+            for test in tests:
+                count += 1
+                formatted_tests += f"{count}. {test['name']}\n"
+                if 'explain' in test:
+                    formatted_tests += f"   explain: {test['explain']}\n"
+                formatted_tests += f"   input: {test['input']}\n"
+                formatted_tests += f"   expected: {test['expected']}\n\n"
         
         # Format failed tests nicely
         formatted_failures = ""
@@ -424,9 +427,13 @@ class Revise(Node):
             formatted_failures += f"   received: {result['received']}\n"
             formatted_failures += f"   expected: {result['expected']}\n"
             formatted_failures += f"   description: {result['description']}\n\n"
+        
+        error_prompt = get_error_prompt(shared, ['revise', function_name])
 
         prompt = f"""
 You are a QA engineer to check and fix the test code result. 
+
+{error_prompt}
 
 ### NEXT ACTION
 Your action choice: [pass, review, error]
@@ -503,20 +510,20 @@ test_code:  # Include this if revising function
     thinking: ...
     reasoning: ...
     test_cases:
-    pass:
-        - name: "Basic case with positive numbers"
-        input:
-            a: 2
-            b: 3
-        expected: 5
-        status: "ok"
-    retry:
-        - name: "Type case - adding a number and a string"
-        input:
-            a: "3"
-            b: 2
-        expected: "3 is not a number"
-        status: "fail"
+        pass:
+            - name: "Basic case with positive numbers"
+            input:
+                a: 2
+                b: 3
+            expected: 5
+            status: "ok"
+        retry:
+            - name: "Type case - adding a number and a string"
+            input:
+                a: "3"
+                b: 2
+            expected: "3 is not a number"
+            status: "fail"
     function_suggestion: 
         - |
             {"""const add = async (a, b) => {
@@ -534,6 +541,7 @@ test_code:  # Include this if revising function
 ### IMPORTANT
     1. You must have the retry and pass part in the test_cases, even there aren't anything inside.
     2. function_suggestion must be a list, even it only has one.
+    3. You must include all the test codes, even it has already pass.
 ```"""
 
         return prompt
@@ -582,14 +590,17 @@ test_code:  # Include this if revising function
                 assert "describe" in result["test_code"], "Test code must include describe block"
                 assert "test(" in result["test_code"], "Test code must include test cases"
                 assert "expect" in result["test_code"], "Test code must include expect statements"
-
+            print(result["test_code"])
             return result
         except Exception as e:
             print(f"Error in exec: {str(e)}")
             print("Raw LLM response:", response if 'response' in locals() else "No response")
-            raise
+            return 'error'
 
     def post(self, shared, prep_res, exec_res):
+        
+        if exec_res == 'error':
+            return 'error'
         function_name = self.params["function_name"]
 
         # Print what is being revised
@@ -618,7 +629,7 @@ test_code:  # Include this if revising function
             #         print(f"    status: {test_case['status']}")
             
             # Update shared test cases
-            shared["test_cases"][function_name] = exec_res["test_cases"]
+            shared["test_cases"][function_name] = { 'init': '', **exec_res["test_cases"] }
         
         if  "function_suggestion" not in shared:
             shared["function_suggestion"] = {}

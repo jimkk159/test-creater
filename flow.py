@@ -33,7 +33,7 @@ def run_test_flow():
     generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
     implement_function = AsyncNodeWrapper(ImplementFunction(max_retries=2))
     run_tests = RunTests()
-    revise = AsyncNodeWrapper(Revise(max_retries=2))
+    revise = AsyncNodeWrapper(Revise(max_retries=3,wait=5))
     return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
     
     # Error handling
