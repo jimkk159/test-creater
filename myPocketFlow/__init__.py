@@ -74,7 +74,6 @@ class AsyncNode(Node):
         for i in range(self.max_retries):
             try: return await self.exec_async(prep_res)
             except Exception as e:
-                print('retrying....', i)
                 if i==self.max_retries-1: return await self.exec_fallback_async(prep_res,e)
                 if self.wait>0: await asyncio.sleep(self.wait)
     async def run_async(self,shared): 
