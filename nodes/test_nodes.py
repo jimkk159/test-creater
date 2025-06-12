@@ -154,17 +154,17 @@ test_cases:
                 shared["test_cases"] = {}
             shared["test_cases"][function_name] = exec_res["test_cases"][function_name]
             # Print all generated test cases
-            print(border)
-            print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
-            for function_name, test_case_list in exec_res["test_cases"].items():
-                print(f"-- Function: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
-                for i, test_case in enumerate(test_case_list, 1):
-                    print(f"{i}. {test_case['name']}")
-                    print(f"   explain: {test_case['explain']}")
-                    print(f"   input: {test_case['input']}")
-                    print(f"   expected: {test_case['expected']}")
-            print('-' * BORDER_LEN)
-            print("")
+            # print(border)
+            # print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
+            # for function_name, test_case_list in exec_res["test_cases"].items():
+            #     print(f"-- Function: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
+            #     for i, test_case in enumerate(test_case_list, 1):
+            #         print(f"{i}. {test_case['name']}")
+            #         print(f"   explain: {test_case['explain']}")
+            #         print(f"   input: {test_case['input']}")
+            #         print(f"   expected: {test_case['expected']}")
+            # print('-' * BORDER_LEN)
+            # print("")
             
         except Exception as e:
             print(f"Error in post-processing test cases: {str(e)}")
@@ -327,11 +327,12 @@ class RunTests(AsyncParallelBatchNode):
         passed_tests = 0
         failed_tests = 0
         all_failed_details = []        
+        function_name = self.params["function_name"]
+
         # Aggregate results from all batches
         for batch_result in exec_res_list:
             if isinstance(batch_result, dict) and "status" in batch_result:
                 status = batch_result["status"]
-                function_name = self.params["function_name"]
                 suite_name = batch_result.get("suite", "unknown_suite")
 
                 # Initialize suite iteration count if not exists
@@ -354,18 +355,11 @@ class RunTests(AsyncParallelBatchNode):
 
         # Print aggregate test results
         print(border)
-        title = f"--- Aggregate Test Results: {passed_tests}/{total_tests} Passed ---"
+        title = f"--- Aggregate {function_name} Test Results: {passed_tests}/{total_tests} Passed ---"
         print(title)
 
         if failed_tests == 0:
-            print("🎉All tests passed across all batches!")
-            print("-" * len(title))
-            
-            test_codes_to_file = ''
-            for i, func_name in enumerate(shared["test_code"]):
-                test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
-            save_to_file(test_codes_to_file, "final.test.js")
-            return 'success' # All tests passed
+            return "default"
 
         if "passed" not in shared:
             shared["passed"] = {}
@@ -411,7 +405,6 @@ class Revise(Node):
         
         # Format current test cases nicely
         formatted_tests = ""
-        print(function_name, test_cases[function_name])
         for i, test in enumerate(test_cases[function_name], 1):
             formatted_tests += f"{i}. {test['name']}\n"
             formatted_tests += f"   explain: {test['explain']}\n"
@@ -604,25 +597,25 @@ test_code:  # Include this if revising function
 
         # Handle test case revisions
         if "test_cases" in exec_res:
-            print("Revising test cases:")
+            # print("Revising test cases:")
             
-            # Handle pass test cases
-            if "pass" in exec_res["test_cases"]:
-                print("Passing test cases:")
-                for test_case in exec_res["test_cases"]["pass"]:
-                    print(f"  Test {test_case['name']}")
-                    print(f"    input: {test_case['input']}")
-                    print(f"    expected: {test_case['expected']}")
-                    print(f"    status: {test_case['status']}")
+            # # Handle pass test cases
+            # if "pass" in exec_res["test_cases"]:
+            #     print("Passing test cases:")
+            #     for test_case in exec_res["test_cases"]["pass"]:
+            #         print(f"  Test {test_case['name']}")
+            #         print(f"    input: {test_case['input']}")
+            #         print(f"    expected: {test_case['expected']}")
+            #         print(f"    status: {test_case['status']}")
             
-            # Handle retry test cases
-            if "retry" in exec_res["test_cases"]:
-                print("Retry test cases:")
-                for test_case in exec_res["test_cases"]["retry"]:
-                    print(f"  Test {test_case['name']}")
-                    print(f"    input: {test_case['input']}")
-                    print(f"    expected: {test_case['expected']}")
-                    print(f"    status: {test_case['status']}")
+            # # Handle retry test cases
+            # if "retry" in exec_res["test_cases"]:
+            #     print("Retry test cases:")
+            #     for test_case in exec_res["test_cases"]["retry"]:
+            #         print(f"  Test {test_case['name']}")
+            #         print(f"    input: {test_case['input']}")
+            #         print(f"    expected: {test_case['expected']}")
+            #         print(f"    status: {test_case['status']}")
             
             # Update shared test cases
             shared["test_cases"][function_name] = exec_res["test_cases"]

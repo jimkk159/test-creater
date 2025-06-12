@@ -20,6 +20,7 @@ class GetToolsNode(AsyncNode):
         
         # Construct the absolute path to the server script
         absolute_server_path = os.path.join(workspace_root, relative_server_path)
+        print(absolute_server_path)
         
         # Check if the absolute path starts with the allowed directory prefix
         if not absolute_server_path.startswith(allowed_dir):

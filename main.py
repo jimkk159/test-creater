@@ -43,26 +43,27 @@ async def main():
         "question": question,
         "file": {},
         "analyze": {},
-        "test_code": "",
+        "test_code": {},
         "test_cases": {},
-        "functions": {'add': 'const add = (a, b) => a + b\n', 'multiple': 'const multiple = (a, b) => a * b'}
+        "functions": {}
     }
-    shared = {
-  "question": "what is the content in the file myMath.js!",
-  "action": "done",
-  "parameters": {},
-  "thinking": "The question asks for the content of the file myMath.js. The previous action has already retrieved the content of that file successfully. Therefore, there is no further action needed to extract or analyze information from it.",
-  "tool_result": "const add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }",
-  "result": "✅ FILE CONTENT:\nconst add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }",
-  "analyze": {
-    "file_content": "const add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }"
-  },
-  "test_code": {},
-  "test_cases": {},
-  "functions": {
-    "add": "const add = (a, b) => a + b \n",
-  }
-}
+    # shared = {
+    #   "question": "what is the content in the file myMath.js!",
+    #   "action": "done",
+    #   "parameters": {},
+    #   "thinking": "The question asks for the content of the file myMath.js. The previous action has already retrieved the content of that file successfully. Therefore, there is no further action needed to extract or analyze information from it.",
+    #   "tool_result": "const add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }",
+    #   "result": "✅ FILE CONTENT:\nconst add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }",
+    #   "analyze": {
+    #     "file_content": "const add = (a, b)=> a+b \nconst multiple = (a, b)=> a * b \n\nmodule.exports = { add, multiple }"
+    #   },
+    #   "test_code": {},
+    #   "test_cases": {},
+    #   "functions": {
+    #     "add": "const add = (a, b) => a + b \n",
+    #     'multiple': 'const multiple = (a, b) => a * b'
+    #   }
+    # }
 
     # Create and run the flow
     flow = auto_code_test_generate_flow()
