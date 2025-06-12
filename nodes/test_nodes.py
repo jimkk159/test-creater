@@ -7,7 +7,7 @@ from utils.utils import extract_describe_blocks, get_error_prompt
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
-MAX_ITERATION = 3
+MAX_ITERATION = 5
 
 class Analyze_Node(Node):
     def prep(self, shared):
@@ -252,7 +252,7 @@ function_code: |
             return result["function_code"]
             
         except Exception as e:
-            print(f"Error in exec: {str(e)}")
+            print(f"Error in implement exec: {str(e)}")
             print("Raw LLM response:", response if 'response' in locals() else "No response")
             raise
 
@@ -411,22 +411,31 @@ class Revise(Node):
         # Format current test cases nicely
         formatted_tests = ""
         count = 0
-        for _, tests in test_cases[function_name].items():
-            for test in tests:
-                count += 1
-                formatted_tests += f"{count}. {test['name']}\n"
-                if 'explain' in test:
-                    formatted_tests += f"   explain: {test['explain']}\n"
-                formatted_tests += f"   input: {test['input']}\n"
-                formatted_tests += f"   expected: {test['expected']}\n\n"
-        
-        # Format failed tests nicely
-        formatted_failures = ""
-        for i, result in enumerate(failed_tests[function_name], 1):
-            formatted_failures += f"{i}. {result['test_case']}:\n"
-            formatted_failures += f"   received: {result['received']}\n"
-            formatted_failures += f"   expected: {result['expected']}\n"
-            formatted_failures += f"   description: {result['description']}\n\n"
+        try:
+            for _, tests in test_cases[function_name].items():
+                for test in tests:
+                    count += 1
+                    if isinstance(test, str):
+                        print(222, tests)
+                        print(333, test)
+                    formatted_tests += f"{count}. {test['name']}\n"
+                    if 'explain' in test:
+                        formatted_tests += f"   explain: {test['explain']}\n"
+                    formatted_tests += f"   input: {test['input']}\n"
+                    formatted_tests += f"   expected: {test['expected']}\n\n"
+            
+            # Format failed tests nicely
+            formatted_failures = ""
+            for i, result in enumerate(failed_tests[function_name], 1):
+                formatted_failures += f"{i}. {result['test_case']}:\n"
+                formatted_failures += f"   received: {result['received']}\n"
+                formatted_failures += f"   expected: {result['expected']}\n"
+                formatted_failures += f"   description: {result['description']}\n\n"
+        except Exception as e:
+            if 'implement' not in shared:
+                shared['implement'] = {}
+            shared['implement'][function_name] = e
+            return 'error-implement'
         
         error_prompt = get_error_prompt(shared, ['revise', function_name])
 
@@ -541,12 +550,16 @@ test_code:  # Include this if revising function
 ### IMPORTANT
     1. You must have the retry and pass part in the test_cases, even there aren't anything inside.
     2. function_suggestion must be a list, even it only has one.
-    3. You must include all the test codes, even it has already pass.
+    3. You must include the pass functions into the test_code as well.
 ```"""
 
         return prompt
 
-    def exec(self, prompt):
+    def exec(self, input):
+        if input == 'error-implement':
+            return 'error-implement'
+        
+        prompt = input
         response = call_llm(prompt)
         try:
             yaml_str = response.split("```yaml")[1].split("```")[0].strip()
@@ -590,10 +603,10 @@ test_code:  # Include this if revising function
                 assert "describe" in result["test_code"], "Test code must include describe block"
                 assert "test(" in result["test_code"], "Test code must include test cases"
                 assert "expect" in result["test_code"], "Test code must include expect statements"
-            print(result["test_code"])
+
             return result
         except Exception as e:
-            print(f"Error in exec: {str(e)}")
+            print(f"Error in revise exec: {str(e)}")
             print("Raw LLM response:", response if 'response' in locals() else "No response")
             return 'error'
 
@@ -601,6 +614,9 @@ test_code:  # Include this if revising function
         
         if exec_res == 'error':
             return 'error'
+        
+        if exec_res == 'error-implement':
+            return 'error-implement'
         function_name = self.params["function_name"]
 
         # Print what is being revised

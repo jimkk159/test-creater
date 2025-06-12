@@ -30,16 +30,17 @@ def Read_and_find_file_flow():
 # --- Flow Creation ---
 def run_test_flow():
     """Creates and returns the parallel translation flow."""
-    generate_test_cases = AsyncNodeWrapper(GenerateTestCases())
-    implement_function = AsyncNodeWrapper(ImplementFunction(max_retries=2))
+    generate_test_cases = AsyncNodeWrapper(GenerateTestCases(max_retries=3, wait=2))
+    implement_function = AsyncNodeWrapper(ImplementFunction(max_retries=5, wait=2))
     run_tests = RunTests()
-    revise = AsyncNodeWrapper(Revise(max_retries=3,wait=5))
+    revise = AsyncNodeWrapper(Revise(max_retries=5, wait=2))
     return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
     
     # Error handling
     generate_test_cases - 'error' >> generate_test_cases
     implement_function - 'error' >> implement_function
     revise - 'error' >> revise
+    revise - 'error-implement' >> implement_function 
 
     generate_test_cases >> implement_function
     implement_function >> run_tests
