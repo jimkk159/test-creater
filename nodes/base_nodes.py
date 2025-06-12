@@ -5,6 +5,8 @@ class AsyncNodeWrapper(AsyncNode):
     def __init__(self, sync_node, max_retries=1, wait=0):
         super().__init__(max_retries=max_retries, wait=wait)
         self.sync_node = sync_node
+        self.max_retries = self.sync_node.max_retries
+        self.wait = self.sync_node.wait
 
     async def prep_async(self, shared):
         # Pass params to sync node
