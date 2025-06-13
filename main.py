@@ -20,9 +20,9 @@ async def main():
     flow = auto_code_test_generate_flow()
     await flow.run_async(shared)
 
-    print("\n=== Final Results ===")
-    print(f"Problem: {shared['question'][:50]}...")
-    print(f"Final Result:\n{shared['final_result']}")
+    # print("\n=== Final Results ===")
+    # print(f"Problem: {shared['question'][:50]}...")
+    # print(f"Final Result:\n{shared['final_result']}")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
