@@ -1,6 +1,4 @@
-const add = (a, b)=> a+b 
-const multiple = (a, b)=> a * b 
-const subtract = (a, b)=> a - b 
-const divide = (a, b)=> a / b 
+export function add  (a, b) {
+    return a + b
+}
 
-module.exports = { add, multiple, subtract, divide }

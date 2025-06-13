@@ -3,7 +3,7 @@ from myPocketFlow import Node, AsyncNode
 from utils.call_llm.open_ai import call_llm
 from utils.utils import get_tools, call_tool, handle_max_iteration_error
 
-from .constants import BORDER, SYSTEM_MAX_LOOP, MCP_SERVER_PATH, Actions
+from .constants import Actions, BORDER, SYSTEM_MAX_LOOP, MCP_SERVER_PATH
 from .tool_formatter import ToolFormatter, PromptBuilder
 from .response_parser import ResponseParser
 from .shared_manager import SharedManager
@@ -73,6 +73,7 @@ class DecideToolNode(Node):
             result = f"✅ FILE CONTENT:\n{SharedManager.get_tool_result(shared)}".rstrip('\n')
             SharedManager.set_final_result(shared, result)
             print(BORDER)
+            print(result)
             return Actions.DEFAULT
             
         elif action == Actions.TOOL:
