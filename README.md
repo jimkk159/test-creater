@@ -1,4 +1,4 @@
-# PocketFlow Code Generator
+# Test Code Generator
 
 A modular, agentic, and async-first framework for automated code understanding, test generation, and validation. This project leverages LLMs and tool APIs to analyze code, generate tests, implement functions, and validate results in a fully automated pipeline.
 
@@ -34,7 +34,7 @@ flowchart TD
 flowchart TD
     G[GenerateTestCases] --> H[ImplementFunction] --> I[RunTests]
     I -- failure --> J[Revise] --> I
-    I -- success --> K[ReturnDefaultActionNode]
+    I -- success --> K[End]
     J -- error-implement --> H
 ```
 
@@ -42,7 +42,6 @@ flowchart TD
 - **ImplementFunction**: LLM writes test code for each function.
 - **RunTests**: Executes tests (async/parallel).
 - **Revise**: If tests fail, LLM revises code/tests and retries.
-- **ReturnDefaultActionNode**: Handles successful completion.
 
 ## Quickstart
 
