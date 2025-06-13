@@ -32,10 +32,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    G[Start] --> H[GenerateTestCases] --> I[ImplementFunction] --> J[RunTests]
-    J -- failure --> K[Revise] --> J
-    J -- success --> L[ReturnDefaultActionNode]
-    K -- error-implement --> I
+    G[GenerateTestCases] --> H[ImplementFunction] --> I[RunTests]
+    I -- failure --> J[Revise] --> I
+    I -- success --> K[ReturnDefaultActionNode]
+    J -- error-implement --> H
 ```
 
 - **GenerateTestCases**: LLM generates test cases for each function.
