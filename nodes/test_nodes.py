@@ -3,17 +3,20 @@ import yaml
 from myPocketFlow import Node, AsyncParallelBatchNode
 from utils.call_llm.xai import call_llm
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import extract_describe_blocks, get_error_prompt
+from utils.utils import extract_describe_blocks, get_error_prompt, handle_max_iteration_error
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
 MAX_ITERATION = 5
+SYSTEM_MAX_LOOP = 2
 
 class Analyze_Node(Node):
     def prep(self, shared):
         """Analyze files for later test generate"""
         print(border)
         print("🔍 Analyze the file content...")
+        error_prompt = get_error_prompt(shared, ['analyze'])
+
         if "analyze" not in shared:
             shared["analyze"] = {}
         shared["analyze"]["file_content"] = shared["file"]["tool_result"]
@@ -23,6 +26,8 @@ class Analyze_Node(Node):
         prompt = (f"""
     ### CONTEXT
     You are an assistant that help the code tester to extract the functions which need to be tested in the content.
+
+    {error_prompt}
 
     ### TASK
     Extract the function in the file
@@ -69,8 +74,14 @@ class Analyze_Node(Node):
             print(f"❌ Error parsing LLM response on analyze: {e}")
             print("Raw response:", response)
             raise
+    
+    def exec_fallback(self, prep_res, exc):
+        return { "error": exc }
 
     def post(self, shared, prep_res, exec_res):
+        if "error" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["analyze"])
+        
         shared["functions"] = exec_res
         print(border)
         print(f"⛏️ extracted functions: {list(exec_res.keys())}")
@@ -90,12 +101,16 @@ class GenerateTestCases(Node):
         function_content = self.params["function_content"]
         print(f"{border}\n🧪 Generate {function_name} test cases...")
 
+        error_prompt = get_error_prompt(shared, ['generateTestCases', function_name])
+
         prompt = f"""
             ### CONTEXT
             You are an assistant to help the Quality Assurance Engineer to generate test cases
 
             ## FUNCTIONS
             {function_name}: {function_content}
+
+{error_prompt}
 
 Output in this YAML format with reasoning:
 ```yaml
@@ -151,29 +166,32 @@ test_cases:
             print(f"Error generating test cases: {str(e)}")
             print("Raw LLM response:", response if 'response' in locals() else "No response")
             raise
+    
+    def exec_fallback(self, prep_res, exc):
+        return { "error": exc }
 
     def post(self, shared, prep_res, exec_res):
-        try:
-            function_name = self.params["function_name"]
-            if "test_cases" not in shared:
-                shared["test_cases"] = {}
-            shared["test_cases"][function_name] = { 'init': exec_res["test_cases"][function_name]}
-            # Print all generated test cases
-            # print(border)
-            # print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
-            # for function_name, test_case_list in exec_res["test_cases"].items():
-            #     print(f"-- Function: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
-            #     for i, test_case in enumerate(test_case_list, 1):
-            #         print(f"{i}. {test_case['name']}")
-            #         print(f"   explain: {test_case['explain']}")
-            #         print(f"   input: {test_case['input']}")
-            #         print(f"   expected: {test_case['expected']}")
-            # print('-' * BORDER_LEN)
-            # print("")
-            
-        except Exception as e:
-            print(f"Error in post-processing test cases: {str(e)}")
-            return 'error'
+        function_name = self.params["function_name"]
+        if "error" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["generateTestCases", function_name])
+    
+        function_name = self.params["function_name"]
+        if "test_cases" not in shared:
+            shared["test_cases"] = {}
+        shared["test_cases"][function_name] = { 'init': exec_res["test_cases"][function_name]}
+
+        # Print all generated test cases
+        print(border)
+        print(f"\n=== Generated {len(exec_res['test_cases'])} Test Cases ===\n")
+        for function_name, test_case_list in exec_res["test_cases"].items():
+            print(f"-- Function: {function_name} {"-" * (BORDER_LEN - 11 - len(function_name))}")
+            for i, test_case in enumerate(test_case_list, 1):
+                print(f"{i}. {test_case['name']}")
+                print(f"   explain: {test_case['explain']}")
+                print(f"   input: {test_case['input']}")
+                print(f"   expected: {test_case['expected']}")
+        print('-' * BORDER_LEN)
+        print("")
 
 class ImplementFunction(Node):
     def prep(self, shared):
@@ -183,13 +201,18 @@ class ImplementFunction(Node):
 
         function_name, functions, test_cases = function_name, shared["functions"][function_name], shared["test_cases"][function_name]["init"]
 
-
         formatted_tests = ""
         for i, test in enumerate(test_cases, 1):
             formatted_tests += f"- {function_name}:"
             formatted_tests += f"{i}. {test['name']}\n"
             formatted_tests += f"   input: {test['input']}\n"
             formatted_tests += f"   expected: {test['expected']}\n\n"
+        
+        error_prompt = ""
+        if 'error-implement' in shared:
+            error_prompt = get_error_prompt(shared, ['error-implement', 'revise', function_name])
+        else:
+            error_prompt = get_error_prompt(shared, ['implement', function_name])
         
         example= """
 - original function:
@@ -218,6 +241,8 @@ class ImplementFunction(Node):
 
 ### TEST CASES
 {formatted_tests}
+
+{error_prompt}
 
 Output in this YAML format:
 ```yaml
@@ -256,8 +281,14 @@ function_code: |
             print("Raw LLM response:", response if 'response' in locals() else "No response")
             raise
 
+    def exec_fallback(self, prep_res, exc):
+        return { "error": exc }
+
     def post(self, shared, prep_res, exec_res):
         function_name = self.params["function_name"]
+        if "error" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["implement", function_name])
+    
         if "test_code" not in shared:
             shared["test_code"] = {}
         shared["test_code"][function_name] = exec_res
@@ -435,7 +466,7 @@ class Revise(Node):
             if 'implement' not in shared:
                 shared['implement'] = {}
             shared['implement'][function_name] = e
-            return 'error-implement'
+            return {'error-implement': e}
         
         error_prompt = get_error_prompt(shared, ['revise', function_name])
 
@@ -556,8 +587,8 @@ test_code:  # Include this if revising function
         return prompt
 
     def exec(self, input):
-        if input == 'error-implement':
-            return 'error-implement'
+        if 'error-implement' in input:
+            return input
         
         prompt = input
         response = call_llm(prompt)
@@ -608,41 +639,43 @@ test_code:  # Include this if revising function
         except Exception as e:
             print(f"Error in revise exec: {str(e)}")
             print("Raw LLM response:", response if 'response' in locals() else "No response")
-            return 'error'
+            raise
+        
+    def exec_fallback(self, prep_res, exc):
+        return { "error": exc }
 
     def post(self, shared, prep_res, exec_res):
-        
-        if exec_res == 'error':
-            return 'error'
-        
-        if exec_res == 'error-implement':
-            return 'error-implement'
         function_name = self.params["function_name"]
+        if "error-implement" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["revise", function_name], return_key='error-implement')
 
+        if "error" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["revise", function_name])
+        
         # Print what is being revised
-        # print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
+        print(f"\n=== Revisions (Iteration {shared['iteration_count']}) ===")
 
         # Handle test case revisions
         if "test_cases" in exec_res:
-            # print("Revising test cases:")
+            print("Revising test cases:")
             
-            # # Handle pass test cases
-            # if "pass" in exec_res["test_cases"]:
-            #     print("Passing test cases:")
-            #     for test_case in exec_res["test_cases"]["pass"]:
-            #         print(f"  Test {test_case['name']}")
-            #         print(f"    input: {test_case['input']}")
-            #         print(f"    expected: {test_case['expected']}")
-            #         print(f"    status: {test_case['status']}")
+            # Handle pass test cases
+            if "pass" in exec_res["test_cases"]:
+                print("Passing test cases:")
+                for test_case in exec_res["test_cases"]["pass"]:
+                    print(f"  Test {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
             
-            # # Handle retry test cases
-            # if "retry" in exec_res["test_cases"]:
-            #     print("Retry test cases:")
-            #     for test_case in exec_res["test_cases"]["retry"]:
-            #         print(f"  Test {test_case['name']}")
-            #         print(f"    input: {test_case['input']}")
-            #         print(f"    expected: {test_case['expected']}")
-            #         print(f"    status: {test_case['status']}")
+            # Handle retry test cases
+            if "retry" in exec_res["test_cases"]:
+                print("Retry test cases:")
+                for test_case in exec_res["test_cases"]["retry"]:
+                    print(f"  Test {test_case['name']}")
+                    print(f"    input: {test_case['input']}")
+                    print(f"    expected: {test_case['expected']}")
+                    print(f"    status: {test_case['status']}")
             
             # Update shared test cases
             shared["test_cases"][function_name] = { 'init': '', **exec_res["test_cases"] }

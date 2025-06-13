@@ -208,6 +208,52 @@ def get_error_prompt(shared, keys):
         """
     return error_prompt
 
+def set_nested_value(d, keys, value=None, increment=False, default=0):
+    """
+    Traverse or create nested dicts in d using keys. If increment is True, increment the final value (assumed int), else set it to value.
+    Returns the final value after operation.
+    """
+    current = d
+    for key in keys[:-1]:
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    final_key = keys[-1]
+    if increment:
+        if final_key not in current:
+            current[final_key] = default
+        else:
+            current[final_key] += 1
+        return current[final_key]
+    else:
+        current[final_key] = value
+        return current[final_key]
+
+def handle_max_iteration_error(shared, exec_res, border, max_loop, keys=[], return_key='error'):
+    if len(keys) == 0:
+        return 'default'
+
+    print(border)
+    # record the max loop number and decide if human should be called
+    if "max_loop" not in shared:
+        shared["max_loop"] = {}
+    
+    # Navigate through the hierarchy using keys for max_loop
+    count = set_nested_value(shared["max_loop"], keys, increment=True, default=0)
+    
+    if count >= max_loop:
+        print(border)
+        print("💀 Max loop reached. Returning 'human' action.")
+        return "human"
+
+    # record the error
+    if return_key not in shared:
+        shared[return_key] = {}
+
+    print("🔁 Max retries reached or error in exec. Returning 'error' action.", exec_res[return_key])
+    set_nested_value(shared[return_key], keys, value=exec_res[return_key])
+    return return_key
+
 if __name__ == "__main__":
     asyncio.run(main())
 

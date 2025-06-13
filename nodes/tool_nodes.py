@@ -2,9 +2,10 @@ import os
 import yaml
 from myPocketFlow import Node, AsyncNode
 from utils.call_llm.xai import call_llm
-from utils.utils import get_tools, call_tool, get_error_prompt
+from utils.utils import get_tools, call_tool, get_error_prompt, handle_max_iteration_error
 
 BORDER_LEN = 96
+SYSTEM_MAX_LOOP = 2
 border = f"{"=" * BORDER_LEN}"
 allowed_dir = os.environ.get("ALLOW_READ_FILE_PATH")
 
@@ -20,7 +21,6 @@ class GetToolsNode(AsyncNode):
         
         # Construct the absolute path to the server script
         absolute_server_path = os.path.join(workspace_root, relative_server_path)
-        print(absolute_server_path)
         
         # Check if the absolute path starts with the allowed directory prefix
         if not absolute_server_path.startswith(allowed_dir):
@@ -80,7 +80,7 @@ class DecideToolNode(Node):
                 {shared["file"].get("tool_result", "")}
             """ 
 
-        error_prompt = get_error_prompt(shared, ["error", 'decide'])
+        error_prompt = get_error_prompt(shared, ["error", 'decideToolNode'])
 
         prompt = (f"""
 ### CONTEXT
@@ -150,8 +150,13 @@ IMPORTANT:
             print("Raw response:", response)
             raise
 
+    def exec_fallback(self, prep_res, exc):
+        return { "error": exc }
+    
     def post(self, shared, prep_res, exec_res):
         """Extract yamlResult from YAML and save to shared context"""
+        if "error" in exec_res:
+            return handle_max_iteration_error(shared, exec_res, border, SYSTEM_MAX_LOOP, ["decide"])
         try:
             shared["file"]["action"] = exec_res.get("action", "")
             shared["file"]["tool_name"] = exec_res.get("tool", "")
