@@ -9,7 +9,7 @@ A modular, agentic, and async-first framework for automated code understanding, 
 - **Iterative Revision**: Automatically revises code and tests on failure, with retries and error handling.
 - **Async & Batch Processing**: Scales to multiple functions/files using async and batch flows.
 
-## Architecture & Flow
+## Main Flow
 
 ```mermaid
 flowchart TD
@@ -19,26 +19,33 @@ flowchart TD
     B -- default/done --> D[ReturnDefaultActionNode]
     D --> E[Analyze_Node]
     E --> F[FunctionParallelBatchFlow]
-    subgraph FunctionParallelBatchFlow
-      G[GenerateTestCases] --> H[ImplementFunction] --> I[RunTests]
-      I -- failure --> J[Revise] --> I
-      I -- success --> K[ReturnDefaultActionNode]
-      J -- error-implement --> H
-      G -- error --> G
-      H -- error --> H
-      J -- error --> J
-    end
 ```
 
 - **GetToolsNode**: Discovers available tools (e.g., file readers) via MCP server.
 - **DecideToolNode**: LLM decides which tool to use and with what parameters.
 - **ExecuteToolNode**: Executes the chosen tool and stores results.
+- **ReturnDefaultActionNode**: Handles default/done actions.
 - **Analyze_Node**: Extracts functions from the file for testing.
-- **FunctionParallelBatchFlow**: For each function:
-  - **GenerateTestCases**: LLM generates test cases.
-  - **ImplementFunction**: LLM writes test code.
-  - **RunTests**: Executes tests (async/parallel).
-  - **Revise**: If tests fail, LLM revises code/tests and retries.
+- **FunctionParallelBatchFlow**: For each function, runs the subflow below.
+
+## FunctionParallelBatchFlow Subflow
+
+```mermaid
+flowchart TD
+    G[GenerateTestCases] --> H[ImplementFunction] --> I[RunTests]
+    I -- failure --> J[Revise] --> I
+    I -- success --> K[ReturnDefaultActionNode]
+    J -- error-implement --> H
+    G -- error --> G
+    H -- error --> H
+    J -- error --> J
+```
+
+- **GenerateTestCases**: LLM generates test cases for each function.
+- **ImplementFunction**: LLM writes test code for each function.
+- **RunTests**: Executes tests (async/parallel).
+- **Revise**: If tests fail, LLM revises code/tests and retries.
+- **ReturnDefaultActionNode**: Handles successful completion.
 
 ## Quickstart
 
