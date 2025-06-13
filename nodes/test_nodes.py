@@ -657,7 +657,6 @@ test_code:  # Include this if revising function
         # Handle test case revisions
         if "test_cases" in exec_res:
             print("Revising test cases:")
-            
             # Handle pass test cases
             if "pass" in exec_res["test_cases"]:
                 print("Passing test cases:")
@@ -666,7 +665,6 @@ test_code:  # Include this if revising function
                     print(f"    input: {test_case['input']}")
                     print(f"    expected: {test_case['expected']}")
                     print(f"    status: {test_case['status']}")
-            
             # Handle retry test cases
             if "retry" in exec_res["test_cases"]:
                 print("Retry test cases:")
@@ -675,13 +673,16 @@ test_code:  # Include this if revising function
                     print(f"    input: {test_case['input']}")
                     print(f"    expected: {test_case['expected']}")
                     print(f"    status: {test_case['status']}")
-            
-            # Update shared test cases
-            shared["test_cases"][function_name] = { 'init': '', **exec_res["test_cases"] }
+            # --- Merge logic ---
+            original_cases = shared["test_cases"][function_name].get("init", [])
+            merged = self._merge_test_cases(original_cases, exec_res["test_cases"])
+            shared["test_cases"][function_name]["init"] = merged
+            print(f"Merged test cases: {merged}")
+            print(border)
         
         if  "function_suggestion" not in shared:
             shared["function_suggestion"] = {}
-            
+                
         # Handle function suggestion
         if "function_suggestion" in exec_res:
             shared["function_suggestion"][function_name] = exec_res["function_suggestion"]  # Use first suggestion
@@ -692,3 +693,20 @@ test_code:  # Include this if revising function
                 shared["test_code"] = {}
             function_name = self.params["function_name"]
             shared["test_code"][function_name] = exec_res["test_code"] 
+
+    # --- Merge helper ---
+    def _merge_test_cases(self, original_cases, revised_cases):
+        # original_cases: list of dicts (from "init")
+        # revised_cases: dict with "pass" and "retry" lists (from LLM)
+        # Returns: merged list
+        orig_map = {tc["name"]: tc.copy() for tc in original_cases if "name" in tc}
+        for status in ["pass", "retry"]:
+            for revised in revised_cases.get(status, []):
+                name = revised.get("name")
+                if name in orig_map:
+                    orig_map[name].update(revised)
+                    orig_map[name]["status"] = "ok" if status == "pass" else "fail"
+                else:
+                    revised["status"] = "ok" if status == "pass" else "fail"
+                    orig_map[name] = revised
+        return list(orig_map.values()) 
