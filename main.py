@@ -21,10 +21,8 @@ async def main():
     await flow.run_async(shared)
 
     print("\n=== Final Results ===")
-    print(f"Problem: {shared['problem'][:50]}...")
-    print(f"Iterations: {shared['iteration_count']}")
-    print(f"Function:\n{shared['function_code']}")
-    print(f"Test Results: {len([r for r in shared['test_results'] if r['passed']])}/{len(shared['test_results'])} passed")
+    print(f"Problem: {shared['question'][:50]}...")
+    print(f"Final Result:\n{shared['final_result']}")
 
 if __name__ == "__main__":
     asyncio.run(main()) 

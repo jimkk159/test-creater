@@ -65,6 +65,7 @@ class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
         for i, func_name in enumerate(shared["test_code"]):
             test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
         save_to_file(test_codes_to_file, "final.test.js")
+        shared['final_result'] = test_codes_to_file
 
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
