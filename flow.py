@@ -1,9 +1,16 @@
+import warnings
 from myPocketFlow import AsyncFlow, AsyncParallelBatchFlow
 from nodes import AsyncNodeWrapper, ReturnDefaultActionNode
 from nodes import GetToolsNode, DecideToolNode, ExecuteToolNode
 from nodes import GenerateTestCasesNode, RunTestsNode, ImplementFunctionNode, AnalyzeNode, ReviseNode
 
 from utils.utils import save_to_file
+
+def save_to_file_iteration(shared):
+    test_codes_to_file = ''
+    for i, func_name in enumerate(shared["test_code"]):
+        test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
+    save_to_file(test_codes_to_file, "final.test.js")
 
 def Read_and_find_file_flow():
     """Find the file and then read its content"""
@@ -59,15 +66,11 @@ class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
         # Create a list of params for each function
         return [{"function_name": name, "function_content": content} 
                 for name, content in functions.items()]
+        
     async def post_async(self, shared, prep_res, exec_res):
         # Save the test code to a file
         print("🎉All tests passed across all batches!")
-        
-        test_codes_to_file = ''
-        for i, func_name in enumerate(shared["test_code"]):
-            test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
-        save_to_file(test_codes_to_file, "final.test.js")
-        shared['final_result'] = test_codes_to_file
+        save_to_file_iteration(shared)
 
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
