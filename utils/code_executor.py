@@ -25,18 +25,36 @@ def extract_failed_tests(jest_output):
         # If the final summary block is not found, the whole output is intermediate
         intermediate_output = jest_output.strip()
 
-    # Now split the intermediate output to separate the initial summary and failures
+    # First try to split by bullet points for regular test failures
     test_failures_split = re.split(r"\n\s*● ", intermediate_output)
-
-    if test_failures_split:
+    
+    if len(test_failures_split) > 1:
         # The first element is the initial overall summary (if any)
         overall_summary = test_failures_split[0].strip()
         # The rest are individual failures
         individual_failures_raw = test_failures_split[1:]
+    else:
+        # If no bullet points found, check for module resolution errors
+        module_error_match = re.search(r"Cannot find module.*?\n", intermediate_output)
+        if module_error_match:
+            # Extract the module error as a single failure
+            individual_failures_raw = [intermediate_output]
+            overall_summary = ""
 
     results = []
 
     for failure in individual_failures_raw:  # Process individual failures
+        # For module resolution errors, use the whole error as description
+        if "Cannot find module" in failure:
+            results.append({
+                "suite": "Module Resolution",
+                "test_case": "Import",
+                "expected": None,
+                "received": None,
+                "description": failure.strip()
+            })
+            continue
+
         # Extract suite and test name and the rest of the failure output
         header_match = re.match(r"(.*?) › (.*?)\n", failure)
         if not header_match:
@@ -64,7 +82,6 @@ def extract_failed_tests(jest_output):
             if end_of_header_line != -1:
                  description_content = failure[end_of_header_line + 1:].strip()
 
-
         # Extract Expected and Received values (still needed for separate fields)
         expected_match = re.search(r"Expected:\s+(.*?)\n", failure)
         received_match = re.search(r"Received:\s+(.*?)\n", failure)
@@ -74,7 +91,6 @@ def extract_failed_tests(jest_output):
 
         # Construct the description using the header and the content after "Received:"
         full_description = f"{suite} › {test}\n{description_content}".strip()
-
 
         results.append({
             "suite": suite,
@@ -164,7 +180,7 @@ async def execute_jest_test(test_code):
 
             # Wait for process to complete and get output
             stdout, stderr = await process.communicate()
-            
+
             # Decode the output
             stdout = stdout.decode('utf-8') if stdout else ""
             stderr = stderr.decode('utf-8') if stderr else ""
@@ -184,21 +200,17 @@ async def execute_jest_test(test_code):
                 os.remove(file_path)
 
 def extract_test_counts(test_output_string):
-    """
-    Extracts the number of passed, failed, and total tests from Jest CLI output.
-
-    Args:
-        test_output_string: A string containing the full Jest CLI output.
-
-    Returns:
-        A dictionary with keys 'passed', 'failed', and 'total',
-        containing the respective counts as integers. Returns {
-        'passed': 0, 'failed': 0, 'total': 0} if the pattern is not found.
-    """
-    # Find the Tests line
+    # Find both Test Suites and Tests lines
+    suites_line_match = re.search(r'^Test Suites:\s+(.*)$', test_output_string, re.MULTILINE)
     tests_line_match = re.search(r'^Tests:\s+(.*)$', test_output_string, re.MULTILINE)
+    
+    suited_failed_count = failed_count = passed_count = total_count = 0
 
-    failed_count = passed_count = total_count = 0
+    if suites_line_match:
+        suites_line = suites_line_match.group(1)
+        suite_failed_match = re.search(r'(\d+)\s+failed', suites_line)
+        if suite_failed_match:
+            suited_failed_count = int(suite_failed_match.group(1))
 
     if tests_line_match:
         tests_line = tests_line_match.group(1)
@@ -215,6 +227,7 @@ def extract_test_counts(test_output_string):
             total_count = int(total_match.group(1))
 
     return {
+        'suite_failed': suited_failed_count,
         'passed': passed_count,
         'failed': failed_count,
         'total': total_count

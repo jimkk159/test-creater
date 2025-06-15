@@ -76,7 +76,6 @@ class GenerateTestCasesNode(Node):
             TestResponseParser.validate_test_case_response(parsed_response)
             return parsed_response
         except Exception as e:
-            print(1111, e)
             raise e
 
     def exec_fallback(self, prep_res, exc):
@@ -127,7 +126,7 @@ class ImplementFunctionNode(Node):
 
     def exec_fallback(self, prep_res, exc):
         """Handle implementation errors"""
-        return {"error": exc}
+        return { "error": exc }
 
     def post(self, shared, prep_res, test_code):
         """Store implemented test code"""
@@ -159,15 +158,14 @@ class RunTestsNode(AsyncParallelBatchNode):
         """Execute individual test suite"""
         suite_match = re.search(r"describe\('([^']+)'", test_code)
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
-
         output = await execute_jest_test(test_code)
-        
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)
         failed = test_counts["failed"]
-
-        if failed == 0: 
+        suite_failed = test_counts["suite_failed"]
+        
+        if failed == 0 and suite_failed == 0: 
             return {
                 "status": test_counts,
                 "detail": [],
@@ -188,7 +186,7 @@ class RunTestsNode(AsyncParallelBatchNode):
                     "expected": expected,
                     "description": content["description"]
                 })
-                
+
         return {
             "status": test_counts,
             "detail": failed_details,
@@ -198,7 +196,7 @@ class RunTestsNode(AsyncParallelBatchNode):
     async def post_async(self, shared, prep_res, exec_res_list):
         """Process test execution results"""
         function_name = self.params["function_name"]
-        total_tests = passed_tests = failed_tests = 0
+        total_tests = passed_tests = failed_tests = suite_failed_tests = 0
         all_failed_details = []
 
         # Aggregate results from all test suites
@@ -212,19 +210,19 @@ class RunTestsNode(AsyncParallelBatchNode):
                 total_tests += status.get("total", 0)
                 passed_tests += status.get("passed", 0)
                 failed_tests += status.get("failed", 0)
+                suite_failed_tests += status.get("suite_failed", 0)
                 
                 if "detail" in batch_result:
                     all_failed_details.extend(batch_result["detail"])
 
         TestFormatter.print_test_results(function_name, passed_tests, total_tests)
 
-        if failed_tests == 0:
+        if failed_tests == 0 and suite_failed_tests == 0:
             return TestActions.DEFAULT
             
         TestSharedManager.store_test_results(
             shared, function_name, passed_tests, total_tests, all_failed_details
         )
-        
         if TestSharedManager.check_max_iterations_reached(shared, function_name):
             print("Max iterations reached for one or more test suites.")
             return TestActions.MAX_ITERATIONS

@@ -39,14 +39,14 @@ def run_test_flow():
     # Error handling
     generate_test_cases - 'error' >> generate_test_cases
     implement_function - 'error' >> implement_function
-    revise - 'error' >> revise
-    revise - 'error-implement' >> implement_function 
+    # revise - 'error' >> revise
+    # revise - 'error-implement' >> implement_function 
 
     generate_test_cases >> implement_function
     implement_function >> run_tests
-    run_tests - "failure" >> revise
-    run_tests >> return_default_node
-    revise >> run_tests
+    # run_tests - "failure" >> revise
+    # run_tests >> return_default_node
+    # revise >> run_tests
         
     return AsyncFlow(start=generate_test_cases)
 

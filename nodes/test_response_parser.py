@@ -5,8 +5,6 @@ class TestResponseParser(ResponseParser):
     @staticmethod
     def validate_test_case_response(parsed_response):
         """Validate test case generation response"""
-        ResponseParser.validate_decision_response.__func__(parsed_response)
-        
         assert "test_cases" in parsed_response, "Result must have 'test_cases' field"
         assert isinstance(parsed_response["test_cases"], dict), "test_cases must be a dictionary"
 
