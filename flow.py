@@ -1,5 +1,7 @@
 from myPocketFlow import AsyncFlow, AsyncParallelBatchFlow
-from nodes import AsyncNodeWrapper, GetToolsNode, DecideToolNode, ExecuteToolNode, Analyze_Node, GenerateTestCases, ImplementFunction, RunTests, Revise, ReturnDefaultActionNode
+from nodes import AsyncNodeWrapper, ReturnDefaultActionNode
+from nodes import GetToolsNode, DecideToolNode, ExecuteToolNode
+from nodes import GenerateTestCasesNode, RunTestsNode, ImplementFunctionNode, AnalyzeNode, ReviseNode
 
 from utils.utils import save_to_file
 
@@ -30,10 +32,10 @@ def Read_and_find_file_flow():
 # --- Flow Creation ---
 def run_test_flow():
     """Creates and returns the parallel translation flow."""
-    generate_test_cases = AsyncNodeWrapper(GenerateTestCases(max_retries=3, wait=2))
-    implement_function = AsyncNodeWrapper(ImplementFunction(max_retries=5, wait=2))
-    run_tests = RunTests()
-    revise = AsyncNodeWrapper(Revise(max_retries=5, wait=2))
+    generate_test_cases = AsyncNodeWrapper(GenerateTestCasesNode(max_retries=3, wait=2))
+    implement_function = AsyncNodeWrapper(ImplementFunctionNode(max_retries=5, wait=2))
+    run_tests = RunTestsNode()
+    revise = AsyncNodeWrapper(ReviseNode(max_retries=5, wait=2))
     return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
     
     # Error handling
@@ -72,7 +74,7 @@ def auto_code_test_generate_flow():
 
     # Create flows or nodes 
     read_and_find_file_flow = Read_and_find_file_flow()
-    analyze_node = AsyncNodeWrapper(Analyze_Node())
+    analyze_node = AsyncNodeWrapper(AnalyzeNode())
 
     # Create a batch flow for running tests on each function
     function_parallel_batch = FunctionParallelBatchFlow(start=run_test_flow())

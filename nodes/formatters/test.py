@@ -1,5 +1,4 @@
-from .test_constants import TestKeys
-from .constants import BORDER_LEN
+from ..constants import BORDER_LEN
 
 class TestFormatter:
     @staticmethod
@@ -248,29 +247,5 @@ test_code:  # Include this if revising function
                 b: 3
             expected: 5
             status: "ok"
-        retry:
-            - name: "Type case - adding a number and a string"
-            input:
-                a: "3"
-                b: 2
-            expected: "3 is not a number"
-            status: "fail"
-    function_suggestion: 
-        - |
-            {'''const add = async (a, b) => {
-                return a + b;
-            };'''}
-    test_code: |
-        - |
-            {'''describe('add function', () => {
-                const add = async (a, b) => a + b;
-                test('Basic case - positive integers', async () => {
-                expect(await add(1, 2)).toBe(2);
-                });
-            });'''}
-    
-### IMPORTANT
-    1. You must have the retry and pass part in the test_cases, even there aren't anything inside.
-    2. function_suggestion must be a list, even it only has one.
-    3. You must include the pass functions into the test_code as well.
-```""" 
+``` 
+"""

@@ -1,5 +1,5 @@
 import asyncio
-from myPocketFlow import Node, AsyncNode
+from myPocketFlow import AsyncNode
 
 class AsyncNodeWrapper(AsyncNode):
     def __init__(self, sync_node, max_retries=1, wait=0):
@@ -24,10 +24,4 @@ class AsyncNodeWrapper(AsyncNode):
         return await asyncio.to_thread(self.sync_node.post, shared, prep_res, exec_res)
 
     async def exec_fallback_async(self, prep_res, exc): 
-        return await asyncio.to_thread(self.sync_node.exec_fallback, prep_res, exc)
-
-
-class ReturnDefaultActionNode(Node):
-    def post(self, shared, prep_res, exec_res):
-        # This node simply returns the "default" action to the parent flow
-        return "default" 
+        return await asyncio.to_thread(self.sync_node.exec_fallback, prep_res, exc) 

@@ -1,4 +1,4 @@
-# Constants for tool nodes
+# Core system constants
 BORDER_LEN = 96
 SYSTEM_MAX_LOOP = 2
 BORDER = f"{'=' * BORDER_LEN}"

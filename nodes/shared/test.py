@@ -1,6 +1,7 @@
-from .test_constants import TestKeys, TestStatus, MAX_ITERATION
+from .base import BaseSharedManager
+from ..constants import TestKeys, TestStatus, MAX_ITERATION
 
-class TestSharedManager:
+class TestSharedManager(BaseSharedManager):
     @staticmethod
     def init_analyze_section(shared):
         """Initialize analyze section"""
@@ -11,44 +12,37 @@ class TestSharedManager:
     def store_file_content(shared, content):
         """Store file content for analysis"""
         TestSharedManager.init_analyze_section(shared)
-        shared[TestKeys.ANALYZE][TestKeys.FILE_CONTENT] = content
+        BaseSharedManager.store_value(shared, [TestKeys.ANALYZE, TestKeys.FILE_CONTENT], content)
 
     @staticmethod
     def store_functions(shared, functions):
         """Store extracted functions"""
-        shared[TestKeys.FUNCTIONS] = functions
+        BaseSharedManager.store_value(shared, [TestKeys.FUNCTIONS], functions)
 
     @staticmethod
     def store_test_cases(shared, function_name, test_cases):
         """Store test cases for a function"""
-        if TestKeys.TEST_CASES not in shared:
-            shared[TestKeys.TEST_CASES] = {}
-        shared[TestKeys.TEST_CASES][function_name] = {'init': test_cases[function_name]}
+        BaseSharedManager.store_dict(shared, [TestKeys.TEST_CASES, function_name], {'init': test_cases[function_name]})
 
     @staticmethod
     def store_test_code(shared, function_name, test_code):
         """Store generated test code"""
-        if TestKeys.TEST_CODE not in shared:
-            shared[TestKeys.TEST_CODE] = {}
-        shared[TestKeys.TEST_CODE][function_name] = test_code
+        BaseSharedManager.store_value(shared, [TestKeys.TEST_CODE, function_name], test_code)
 
     @staticmethod
     def init_test_tracking(shared):
         """Initialize test result tracking"""
-        if TestKeys.PASSED not in shared:
-            shared[TestKeys.PASSED] = {}
-        if TestKeys.TOTAL_TESTS not in shared:
-            shared[TestKeys.TOTAL_TESTS] = {}
-        if TestKeys.FAILED_TESTS not in shared:
-            shared[TestKeys.FAILED_TESTS] = {}
+        for key in [TestKeys.PASSED, TestKeys.TOTAL_TESTS, TestKeys.FAILED_TESTS]:
+            if key not in shared:
+                shared[key] = {}
 
     @staticmethod
     def store_test_results(shared, function_name, passed, total, failed_details):
         """Store test execution results"""
         TestSharedManager.init_test_tracking(shared)
-        shared[TestKeys.PASSED][function_name] = passed
-        shared[TestKeys.TOTAL_TESTS][function_name] = total
-        shared[TestKeys.FAILED_TESTS][function_name] = failed_details
+        BaseSharedManager.store_value(shared, [TestKeys.PASSED, function_name], passed)
+        BaseSharedManager.store_value(shared, [TestKeys.TOTAL_TESTS, function_name], total)
+        BaseSharedManager.store_value(shared, [TestKeys.FAILED_TESTS, function_name], failed_details)
 
     @staticmethod
     def init_suite_iterations(shared):
@@ -67,14 +61,13 @@ class TestSharedManager:
     def increment_suite_iteration(shared, function_name, suite_name):
         """Increment iteration count for a test suite"""
         TestSharedManager.init_function_suite_iterations(shared, function_name)
-        if suite_name not in shared[TestKeys.SUITE_ITERATIONS][function_name]:
-            shared[TestKeys.SUITE_ITERATIONS][function_name][suite_name] = 0
-        shared[TestKeys.SUITE_ITERATIONS][function_name][suite_name] += 1
+        current = BaseSharedManager.get_value(shared[TestKeys.SUITE_ITERATIONS], [function_name, suite_name], 0)
+        BaseSharedManager.store_value(shared[TestKeys.SUITE_ITERATIONS], [function_name, suite_name], current + 1)
 
     @staticmethod
     def check_max_iterations_reached(shared, function_name):
         """Check if any suite has reached max iterations"""
-        max_iterations = shared.get(TestKeys.MAX_ITERATIONS, MAX_ITERATION)
+        max_iterations = BaseSharedManager.get_value(shared, [TestKeys.MAX_ITERATIONS], MAX_ITERATION)
         
         if function_name not in shared.get(TestKeys.SUITE_ITERATIONS, {}):
             return False
@@ -94,17 +87,13 @@ class TestSharedManager:
     def increment_iteration_count(shared, function_name):
         """Increment iteration count for a function"""
         TestSharedManager.init_iteration_count(shared)
-        if function_name not in shared[TestKeys.ITERATION_COUNT]:
-            shared[TestKeys.ITERATION_COUNT][function_name] = 0
-        else:
-            shared[TestKeys.ITERATION_COUNT][function_name] += 1
+        current = BaseSharedManager.get_value(shared, [TestKeys.ITERATION_COUNT, function_name], 0)
+        BaseSharedManager.store_value(shared, [TestKeys.ITERATION_COUNT, function_name], current + 1)
 
     @staticmethod
     def store_function_suggestion(shared, function_name, suggestions):
         """Store function suggestions"""
-        if TestKeys.FUNCTION_SUGGESTION not in shared:
-            shared[TestKeys.FUNCTION_SUGGESTION] = {}
-        shared[TestKeys.FUNCTION_SUGGESTION][function_name] = suggestions
+        BaseSharedManager.store_value(shared, [TestKeys.FUNCTION_SUGGESTION, function_name], suggestions)
 
     @staticmethod
     def merge_test_cases(original_cases, revised_cases):
@@ -126,9 +115,9 @@ class TestSharedManager:
     @staticmethod
     def get_max_iterations(shared):
         """Get max iterations setting"""
-        return shared.get(TestKeys.MAX_ITERATIONS, MAX_ITERATION)
+        return BaseSharedManager.get_value(shared, [TestKeys.MAX_ITERATIONS], MAX_ITERATION)
 
     @staticmethod
     def set_max_iterations(shared, max_iter):
         """Set max iterations"""
-        shared[TestKeys.MAX_ITERATIONS] = max_iter 
+        BaseSharedManager.store_value(shared, [TestKeys.MAX_ITERATIONS], max_iter) 

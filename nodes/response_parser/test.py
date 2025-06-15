@@ -1,5 +1,5 @@
-from .response_parser import ResponseParser
-from .test_constants import TestActions, TestStatus
+from . import ResponseParser
+from ..constants import TestActions, TestStatus
 
 class TestResponseParser(ResponseParser):
     @staticmethod
