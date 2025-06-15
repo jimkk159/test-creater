@@ -54,9 +54,20 @@ class ToolSharedManager(BaseSharedManager):
     def get_tool_result(shared):
         """Get the current tool result from shared state"""
         return BaseSharedManager.get_value(shared, [SharedKeys.FILE, SharedKeys.TOOL_RESULT], "")
+    
+    @staticmethod
+    def get_file_structure(shared):
+        """Get the file structure from shared state"""
+        return BaseSharedManager.get_value(shared, [SharedKeys.FILE, SharedKeys.FILE_STRUCTURE], {}) 
 
     @staticmethod
     def set_final_result(shared, result):
         """Set the final result"""
         ToolSharedManager.init_file_section(shared)
-        BaseSharedManager.store_value(shared, [SharedKeys.FILE, SharedKeys.RESULT], result) 
+        BaseSharedManager.store_value(shared, [SharedKeys.FILE, SharedKeys.RESULT], result)
+
+    @staticmethod
+    def store_file_structure(shared, structure):
+        """Store the file structure from directory tree tool"""
+        ToolSharedManager.init_file_section(shared)
+        BaseSharedManager.store_value(shared, [SharedKeys.FILE, SharedKeys.FILE_STRUCTURE], structure)

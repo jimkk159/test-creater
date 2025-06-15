@@ -7,6 +7,7 @@ import os
 import tempfile
 import subprocess
 import asyncio
+from constants import TEST_DIRECTORY
 
 def extract_failed_tests(jest_output):
     overall_summary = ""
@@ -133,15 +134,17 @@ def execute_python(function_code, input):
     except Exception as e:
         return None, f"{type(e).__name__}: {str(e)}"
     
-def create_jest_test_file(test_code):
+def create_jest_test_file(test_code, path = TEST_DIRECTORY):
     """
     Writes JavaScript test code to a temporary file and returns the file path 
     and the command to run it with Jest.
     """
     try:
-        # Create a temporary file with .test.js extension
-        # delete=False means the file is not deleted when closed, so Jest can access it
-        project_dir = os.path.abspath(os.path.dirname(__file__))  # current script dir
+        # Ensure the directory exists
+        if not os.path.exists(path):
+            os.makedirs(path)
+            
+        project_dir = os.path.abspath(path)  # use input path
 
         # Use tempfile.mkstemp() to create a secure temporary file
         fd, temp_path = tempfile.mkstemp(prefix='temp_jest_', suffix='.test.js', dir=project_dir)
@@ -164,8 +167,8 @@ def create_jest_test_file(test_code):
         # Return None for path and command, and include the error message
         return None, None, f"Error preparing JS execution: {str(e)}"
 
-async def execute_jest_test(test_code):
-    file_path, command, error = create_jest_test_file(test_code)
+async def execute_jest_test(test_code, code_path = TEST_DIRECTORY):
+    file_path, command, error = create_jest_test_file(test_code, code_path)
 
     if error:
         print(f"Error preparing JS execution: {error}")

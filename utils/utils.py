@@ -1,8 +1,8 @@
 import re
 import os
-import time
 import asyncio
 import subprocess
+from constants import TEST_DIRECTORY
 from datetime import datetime
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -35,7 +35,7 @@ def get_next_counter(base_dir):
     
     return counter
 
-def save_to_file(data, filename, base_dir="test", prefix=""):
+def save_to_file(data, filename, base_dir=TEST_DIRECTORY, prefix=""):
     """
     Save data to a file, creating the directory if it doesn't exist.
     
@@ -51,7 +51,8 @@ def save_to_file(data, filename, base_dir="test", prefix=""):
     # Create absolute path for the directory
     save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), base_dir)
     os.makedirs(save_dir, exist_ok=True)
-    
+    print(save_dir)
+
     # Generate date in YYYYMMDD format and get next counter
     date_str = datetime.now().strftime('%Y%m%d')
     # counter = get_next_counter(base_dir)
@@ -250,6 +251,7 @@ def handle_max_iteration_error(shared, exec_res, border, max_loop, keys=[], retu
     if return_key not in shared:
         shared[return_key] = {}
 
+    print(exec_res)
     print("🔁 Max retries reached or error in exec. Returning 'error' action.", exec_res[return_key])
     set_nested_value(shared[return_key], keys, value=exec_res[return_key])
     return return_key

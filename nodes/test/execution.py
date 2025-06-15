@@ -1,4 +1,5 @@
 import re
+import pprint
 from myPocketFlow import AsyncParallelBatchNode
 from utils.code_executor import execute_jest_test, extract_test_counts
 from utils.utils import extract_describe_blocks
@@ -25,7 +26,9 @@ class RunTestsNode(AsyncParallelBatchNode):
         """Execute individual test suite"""
         suite_match = re.search(r"describe\('([^']+)'", test_code)
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
+
         output = await execute_jest_test(test_code)
+        pprint.pprint(output)
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)

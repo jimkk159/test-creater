@@ -10,7 +10,7 @@ async def main():
     print(border)
     print("Starting PocketFlow Code Generator...")
     
-    question = "what is the content in the file test/myMath.js!"
+    question = "what is the content in the file myMath.js!"
     
     shared = {
         "question": question,

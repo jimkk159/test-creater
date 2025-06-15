@@ -1,5 +1,7 @@
+import os
+from datetime import datetime
 from ..constants import BORDER_LEN
-
+from constants import TEST_DIRECTORY
 class TestFormatter:
     @staticmethod
     def format_test_cases(test_cases, function_name):
@@ -45,6 +47,34 @@ class TestFormatter:
         print(title)
 
 class TestPromptBuilder:
+    @staticmethod
+    def save_prompt_to_file(prompt, prompt_type, function_name=None):
+        """Save prompt to a file for debugging/reference
+        
+        Args:
+            prompt (str): The prompt to save
+            prompt_type (str): Type of prompt (e.g., 'analyze', 'test_case', 'implement')
+            function_name (str, optional): Name of function if applicable
+        """
+        
+        # Create prompts directory if it doesn't exist
+        prompts_dir = os.path.join(TEST_DIRECTORY, 'prompts')
+        os.makedirs(prompts_dir, exist_ok=True)
+        
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{prompt_type}_{timestamp}"
+        if function_name:
+            filename += f"_{function_name}"
+        filename += ".txt"
+        
+        # Save prompt to file
+        filepath = os.path.join(prompts_dir, filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(prompt)
+            
+        return filepath
+
     @staticmethod
     def build_analyze_prompt(file_content, error_prompt=""):
         """Build prompt for analyzing functions in file"""
@@ -111,18 +141,12 @@ test_cases:
 ```"""
 
     @staticmethod
-    def build_implement_prompt(functions, formatted_tests, error_prompt=""):
+    def build_implement_prompt(file_path, functions, formatted_tests, error_prompt=""):
         """Build prompt for implementing test functions"""
         example = """
-- original function:
-    function sum(a, b) {
-    return a + b;
-    }
+    <import-file-path> // use exports-loader
 
-- your test function:
     describe('function name', () => {
-        <original function>
-
         test('explain', () => {
             expect(sum(1, 2)).toBe(3);
         });
@@ -134,6 +158,9 @@ test_cases:
 """
 
         return f"""Implement the test cases in JavaScript by Jest base on the functions.
+
+## PATHS
+CODE_TO_TEST_PATH: {os.path.abspath(file_path)}
 
 ### FUNCTIONS
 {functions}

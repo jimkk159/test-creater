@@ -2,8 +2,8 @@ from myPocketFlow import Node
 from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
-from ..shared import TestSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP, TestKeys
+from ..shared import TestSharedManager, ToolSharedManager
+from ..constants import BORDER, SYSTEM_MAX_LOOP, SharedKeys, TestKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -13,25 +13,29 @@ class ImplementFunctionNode(Node):
     def prep(self, shared):
         """Prepare implementation prompt"""
         print(BORDER)
-        print("🏗️ Implement the test case functions...")
+        print("📝 Implementing test cases...")
         
         function_name = self.params["function_name"]
+        file_path = shared[SharedKeys.FILE_PATH]
         functions = shared[TestKeys.FUNCTIONS][function_name]
         test_cases = shared[TestKeys.TEST_CASES][function_name]["init"]
         
         formatted_tests = TestFormatter.format_test_cases(test_cases, function_name)
-        
         error_prompt = ""
         if 'error-implement' in shared:
             error_prompt = get_error_prompt(shared, ['error-implement', 'revise', function_name])
         else:
             error_prompt = get_error_prompt(shared, ['implement', function_name])
+            
+        prompt = TestPromptBuilder.build_implement_prompt(file_path, functions, formatted_tests, error_prompt)
+        # prompt_file = TestPromptBuilder.save_prompt_to_file(prompt, 'implement', function_name)
         
-        return TestPromptBuilder.build_implement_prompt(functions, formatted_tests, error_prompt)
+        return prompt
 
     def exec(self, prompt):
         """Implement test functions using LLM"""
         response = call_llm(prompt)
+
         parsed_response = TestResponseParser.parse_yaml_response(response)
         TestResponseParser.validate_implement_response(parsed_response)
         return parsed_response["function_code"]
@@ -48,5 +52,5 @@ class ImplementFunctionNode(Node):
             return handle_max_iteration_error(
                 shared, test_code, BORDER, SYSTEM_MAX_LOOP, ["implement", function_name]
             )
-    
+        print(111, test_code)
         TestSharedManager.store_test_code(shared, function_name, test_code) 

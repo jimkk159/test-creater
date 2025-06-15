@@ -1,15 +1,18 @@
+import pprint
 from .base import BaseToolNode
 from ..constants import Actions, BORDER
 from ..shared import ToolSharedManager
 from ..formatters.tool import PromptBuilder
 from ..response_parser import ResponseParser
 from utils.call_llm.open_ai import call_llm
+from ..constants import SharedKeys, ToolKeys
 
 class DecideToolNode(BaseToolNode):
     """Node responsible for analyzing questions and deciding which tool to use"""
     
     def prep(self, shared):
         """Build the decision prompt for the LLM"""
+            
         return PromptBuilder.build_decision_prompt(shared)
 
     def exec(self, prompt):
@@ -37,9 +40,7 @@ class DecideToolNode(BaseToolNode):
 
         if action == Actions.DONE:
             result = f"✅ FILE CONTENT:\n{ToolSharedManager.get_tool_result(shared)}".rstrip('\n')
-            ToolSharedManager.set_final_result(shared, result)
-            print(BORDER)
-            print(result)
+            ToolSharedManager.set_final_result(shared, result)            
             return Actions.DEFAULT
             
         elif action == Actions.TOOL:
@@ -47,6 +48,8 @@ class DecideToolNode(BaseToolNode):
             parameters = ToolSharedManager.get_parameters(shared)
             print(f"💡 Selected tool: {tool_name}")
             print(f"🔢 Extracted parameters: {parameters}")
+            if(shared[SharedKeys.FILE][ToolKeys.TOOL_NAME] == 'read_file_tool'):
+                shared[SharedKeys.FILE_PATH] = parameters['path']
             return Actions.TOOL
         
         return Actions.ERROR 
