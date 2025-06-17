@@ -86,4 +86,4 @@ class BaseSharedManager:
         # Initialize or append to the list at the final key
         if keys[-1] not in current:
             current[keys[-1]] = []
-        current[keys[-1]].append(value) 
+        current[keys[-1]].extend(value) 
