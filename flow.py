@@ -1,17 +1,26 @@
+import os
 from myPocketFlow import AsyncFlow, AsyncParallelBatchFlow
-from nodes import AsyncNodeWrapper, ReturnDefaultActionNode
+from nodes import ReturnDefaultActionNode, CopyFileNode
 from nodes import GetToolsNode, DecideToolNode, ExecuteToolNode
-from nodes import GenerateTestCasesNode, RunTestsNode, ImplementFunctionNode, AnalyzeNode, ReviseNode
+from nodes import (
+    GenerateTestCasesNode,
+    RunTestsNode,
+    ImplementFunctionNode,
+    AnalyzeNode,
+    ReviseNode,
+)
 
 from utils.utils import save_to_file
 
+
 def save_to_file_iteration(shared):
-    test_codes_to_file = ''
+    test_codes_to_file = ""
     if "test_code" not in shared:
         shared["test_code"] = []
     for i, func_name in enumerate(shared["test_code"]):
         test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
     save_to_file(test_codes_to_file, "final.test.js")
+
 
 def Read_and_find_file_flow():
     """Find the file and then read its content"""
@@ -21,7 +30,7 @@ def Read_and_find_file_flow():
     execute_node = ExecuteToolNode()
 
     # Error handling
-    decide_node - 'error' >> decide_node
+    decide_node - "error" >> decide_node
 
     # Create the final node to return "default"
     return_default_node = ReturnDefaultActionNode()
@@ -32,58 +41,67 @@ def Read_and_find_file_flow():
     execute_node - "tool_result" >> decide_node
 
     # If decide_node returns anything other than "tool" (like default), go to return_default_node
-    decide_node >> return_default_node # This connects the default action of decide_node
+    
+    decide_node >> return_default_node
+    # This connects the default action of decide_node
 
     # Create flow starting with test generation
     return AsyncFlow(start=get_tools_node)
 
+
 def Implement_flow():
-    implement_function = AsyncNodeWrapper(ImplementFunctionNode(max_retries=1, wait=0))
+    implement_function = ImplementFunctionNode(max_retries=1, wait=0)
     return AsyncFlow(start=implement_function)
+
 
 # --- Flow Creation ---
 def Run_test_flow():
     """Creates and returns the parallel translation flow."""
-    generate_test_cases = AsyncNodeWrapper(GenerateTestCasesNode(max_retries=1, wait=0))
-    
-    run_tests = RunTestsNode()
-    revise = AsyncNodeWrapper(ReviseNode(max_retries=5, wait=2))
-    return_default_node = AsyncNodeWrapper(ReturnDefaultActionNode())
+    generate_test_cases = GenerateTestCasesNode(max_retries=1, wait=0)
     implement_flow = Implement_flow()
-    
+
+    run_tests = RunTestsNode()
+    revise = ReviseNode(max_retries=1, wait=2)
+    return_default_node = ReturnDefaultActionNode()
+
     # Error handling
-    generate_test_cases - 'error' >> generate_test_cases
-    implement_flow - 'error' >> implement_flow
+    generate_test_cases - "error" >> generate_test_cases
+    implement_flow - "error" >> implement_flow
     # revise - 'error' >> revise
-    # revise - 'error-implement' >> implement_function 
+    # revise - 'error-implement' >> implement_function
 
     generate_test_cases >> implement_flow
     implement_flow >> run_tests
-    # run_tests - "failure" >> revise
-    # run_tests >> return_default_node
-    # revise >> run_tests
-        
-    return AsyncFlow(start=generate_test_cases)
+    run_tests - "failure" >> revise
+    run_tests >> return_default_node
+    revise >> run_tests
+
+    return AsyncFlow(start=revise)
+
 
 class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
     async def prep_async(self, shared):
         # Get all functions from shared store
         functions = shared.get("functions", {})
         # Create a list of params for each function
-        return [{"function_name": name, "function_content": content} 
-                for name, content in functions.items()]
-        
+        return [
+            {"function_name": name, "function_content": content}
+            for name, content in functions.items()
+        ]
+
     async def post_async(self, shared, prep_res, exec_res):
         # Save the test code to a file
         print("🎉All tests passed across all batches!")
         save_to_file_iteration(shared)
 
+
 def auto_code_test_generate_flow():
     """Automatically Generate test code and execute the code to ensure the code quality"""
 
-    # Create flows or nodes 
+    # Create flows or nodes
     read_and_find_file_flow = Read_and_find_file_flow()
-    analyze_node = AsyncNodeWrapper(AnalyzeNode())
+    analyze_node = AnalyzeNode()
+    copy_file_node = CopyFileNode(dir_path = os.path.join(os.getcwd(), 'test'), suffix = "_suggestion")
     run_test_flow = Run_test_flow()
 
     # Create a batch flow for running tests on each function
@@ -91,7 +109,8 @@ def auto_code_test_generate_flow():
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
-    analyze_node >> function_parallel_batch
+    analyze_node >> copy_file_node
+    copy_file_node >> function_parallel_batch
 
     # Create flow starting with test generation
-    return AsyncFlow(start=read_and_find_file_flow)
+    return AsyncFlow(start=function_parallel_batch)

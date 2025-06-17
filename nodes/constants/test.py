@@ -4,7 +4,7 @@ MAX_ITERATION = 5
 # Test action types
 class TestActions:
     PASS = "pass"
-    REVIEW = "review"
+    REVISE = "revise"
     ERROR = "error"
     DEFAULT = "default"
     FAILURE = "failure"

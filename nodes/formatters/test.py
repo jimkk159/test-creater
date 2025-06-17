@@ -2,16 +2,20 @@ import os
 from datetime import datetime
 from ..constants import BORDER_LEN
 from constants import TEST_DIRECTORY
+
+
 class TestFormatter:
     @staticmethod
     def format_test_cases(test_cases, function_name):
         """Format test cases for display"""
         formatted_tests = ""
-        for i, test in enumerate(test_cases, 1):
-            formatted_tests += f"- {function_name}:"
-            formatted_tests += f"{i}. {test['name']}\n"
-            formatted_tests += f"   input: {test['input']}\n"
-            formatted_tests += f"   expected: {test['expected']}\n\n"
+        for test_case_list in test_cases.values():
+            for j, test in enumerate(test_case_list, 1):
+                formatted_tests += f"- name: \"{test['name']}\"\n"
+                formatted_tests += f"  input:\n"
+                for i, key in enumerate(test["input"], 1):
+                    formatted_tests += f"    param{i}: {test['input'][key]}\n"
+                formatted_tests += f"  expected: {test['expected']}\n\n"
         return formatted_tests
 
     @staticmethod
@@ -30,49 +34,54 @@ class TestFormatter:
         """Print formatted test cases"""
         print(f"\n=== Generated {len(test_cases)} Test Cases ===\n")
         for function_name, test_case_list in test_cases.items():
-            print(f"-- Function: {function_name} {'-' * (border_len - 11 - len(function_name))}")
+            print(
+                f"-- Function: {function_name} {'-' * (border_len - 11 - len(function_name))}"
+            )
             for i, test_case in enumerate(test_case_list, 1):
                 print(f"{i}. {test_case['name']}")
                 print(f"   explain: {test_case['explain']}")
                 print(f"   input: {test_case['input']}")
                 print(f"   expected: {test_case['expected']}")
-        print('-' * border_len)
+        print("-" * border_len)
         print("")
 
     @staticmethod
     def print_test_results(function_name, passed, total, border_len=BORDER_LEN):
         """Print test results summary"""
-        print('-' * border_len)
-        title = f"--- Aggregate {function_name} Test Results: {passed}/{total} Passed ---"
+        print("-" * border_len)
+        title = (
+            f"--- Aggregate {function_name} Test Results: {passed}/{total} Passed ---"
+        )
         print(title)
+
 
 class TestPromptBuilder:
     @staticmethod
     def save_prompt_to_file(prompt, prompt_type, function_name=None):
         """Save prompt to a file for debugging/reference
-        
+
         Args:
             prompt (str): The prompt to save
             prompt_type (str): Type of prompt (e.g., 'analyze', 'test_case', 'implement')
             function_name (str, optional): Name of function if applicable
         """
-        
+
         # Create prompts directory if it doesn't exist
-        prompts_dir = os.path.join(TEST_DIRECTORY, 'prompts')
+        prompts_dir = os.path.join(TEST_DIRECTORY, "prompts")
         os.makedirs(prompts_dir, exist_ok=True)
-        
+
         # Create filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{prompt_type}_{timestamp}"
         if function_name:
             filename += f"_{function_name}"
         filename += ".txt"
-        
+
         # Save prompt to file
         filepath = os.path.join(prompts_dir, filename)
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(prompt)
-            
+
         return filepath
 
     @staticmethod
@@ -185,94 +194,92 @@ function_code: |
 """
 
     @staticmethod
-    def build_revise_prompt(test_cases, functions, formatted_failures, error_prompt=""):
+    def build_revise_prompt(
+        test_cases, functions, test_code, formatted_failures, error_prompt=""
+    ):
         """Build prompt for revising failed tests"""
         return f"""
-You are a QA engineer to check and fix the test code result. 
+You are a QA engineer responsible for improving test code and evaluating test failures.
 
 {error_prompt}
 
 ### NEXT ACTION
-Your action choice: [pass, review, error]
+Choose one of the following actions: [pass, revise, error]
 
-- pass:
-    This action means the test codes are fine.
-
-- review:
-    This action means the test codes need to be adjust
-
-- error:
-    Something went wrong, and you need human to solve the problem
+- pass: Test code is correct and requires no changes.
+- revise: Test code or original function needs adjustments.
+- error: An issue occurred that needs human intervention.
 
 ### GOAL
-    1. Make the test code reasonable.
-    2. Analyze the failures and output revisions in YAML. 
-    3. You should think about the test cases and its outputs both make sense or not.
+1. Analyze the failures and suggest revisions in YAML format.
+2. Ensure that either the test code or the original function is reasonable.
+3. Validate that test cases and their expected outputs are logical and consistent.
 
-### TIP
-    1. Sometime, the test code fail is due to the function to be test has some drawback.
-       You don't need to fix this kind of fail in the test result.
-    2. You should put the ok test code in the pass class, and retry test code in the retry class.
-    3. You should provide the entire revised test code in the test_code class.
-    4. If the original code has a bug, put the revised function in the function_suggestion.
+### TIPS
+1. If a test fails due to a bug in the function, you do not need to revise the test case.
+2. Place passing test cases in the "pass" class and those to be retried in the "retry" class.
+3. Include the complete revised test code in the "test_code" section.
+4. If the original function has a bug, include the corrected version in the "function_suggestion" section.
 
 ### TEST RESULT INFORMATION
 
-    Current test cases:
-    {test_cases if test_cases else "No test cases available"}
+Current test cases:
+{test_cases if test_cases else "No test cases available"}
 
-    Current function:
-    {f"```javascript\\n{functions}\\n```" if functions else 'No functions available'}
+Current function:
+{f"```javascript\\n{functions}\\n```" if functions else 'No functions available'}
 
-    Failed tests:
-    {formatted_failures}
+Current test code:
+{test_code}
+
+Failed tests:
+{formatted_failures}
 
 Output in this YAML format:
 ```yaml
-action: <name of the action>
+action: <selected action>
 thinking: |
-    <your step-by-step reasoning about we should move forward or revise the test case>
-    
-<if test code has bug>
+    <Explain your reasoning and how to proceed>
+
+<If test code needs revision>
 reasoning: |
-    Looking at the failures, I see that...
-    The issue appears to be...
-    I will revise...
-    I should put this into test code into retry...
-test_cases:  # Dictionary mapping test case index (1-based) to revised test case
+    After reviewing the failures, it seems...
+    The problem is...
+    I will revise the test code and mark it for retry...
 
-    1:
-        name: "Revised test name"
-        input: {{...}}
-        expected: ...
-        status: fail # This means the test code has bug
-        ....
+<If the function has a bug instead>
+reasoning: |
+    The test code is correct, but the original function has a bug...
+    I will include it in the pass class...
 
-<if original function has bug>
-    This test code is fine. It's the original function has bug, I see that...
-    The issue appears to be...
-    I should put this into test code into pass...
+test_cases:
+    pass:
+        - name: "Test name"
+          input: {{...}}
+          expected: ...
+          status: ok
+    retry:
+        - name: "Revised test name"
+          input: {{...}}
+          expected: ...
+            status: fail
 
-    1:
-        name: "Revised test name"
-        input: {{...}}
-        expected: ...
-        status: ok # This means the test code is fine
-        
-function_suggestion: [] # Include this if has original function modification 
-test_code:  # Include this if revising function
+function_suggestion:  # Only include if the function needs to be revised
+    - <function_content>   # - is important, it's a list
+test_code:  # Include if test code is revised
+
+```
 
 ### EXAMPLE
-    action: review
-    thinking: ...
-    reasoning: ...
-    test_cases:
-        pass:
-            - name: "Basic case with positive numbers"
-            input:
-                a: 2
-                b: 3
-            expected: 5
-            status: "ok"
-``` 
+action: review
+thinking: ...
+reasoning: ...
+test_cases:
+    pass:
+        - name: "Basic case with positive numbers"
+          input:
+              a: 2
+              b: 3
+          expected: 5
+          status: "ok"
 """

@@ -30,23 +30,24 @@ class TestResponseParser(ResponseParser):
     def validate_revise_response(parsed_response):
         """Validate revision response"""
         assert "action" in parsed_response, "Result must have 'action' field"
-        assert parsed_response["action"] in [TestActions.PASS, TestActions.REVIEW, TestActions.ERROR], \
-            f"action must be one of: {TestActions.PASS}, {TestActions.REVIEW}, {TestActions.ERROR}"
+        assert parsed_response["action"] in [TestActions.PASS, TestActions.REVISE, TestActions.ERROR], \
+            f"action must be one of: {TestActions.PASS}, {TestActions.REVISE}, {TestActions.ERROR}"
         assert "thinking" in parsed_response, "Result must have 'thinking' field"
         assert isinstance(parsed_response["thinking"], str), "thinking must be a string"
         
         if "test_cases" in parsed_response:
             assert isinstance(parsed_response["test_cases"], dict), "test_cases must be a dictionary"
-            assert "pass" in parsed_response["test_cases"], "test_cases must have 'pass' category"
+            # assert "pass" in parsed_response["test_cases"], "test_cases must have 'pass' category"
             assert "retry" in parsed_response["test_cases"], "test_cases must have 'retry' category"
             
             # Validate pass test cases
-            for test_case in parsed_response["test_cases"]["pass"]:
-                assert "name" in test_case, f"Test case missing 'name' field"
-                assert "input" in test_case, f"Test case missing 'input' field"
-                assert "expected" in test_case, f"Test case missing 'expected' field"
-                assert "status" in test_case, f"Test case missing 'status' field"
-                assert test_case["status"] == TestStatus.OK, f"Pass test case status must be '{TestStatus.OK}'"
+            if "pass" in parsed_response["test_cases"]:
+                for test_case in parsed_response["test_cases"]["pass"]:
+                    assert "name" in test_case, f"Test case missing 'name' field"
+                    assert "input" in test_case, f"Test case missing 'input' field"
+                    assert "expected" in test_case, f"Test case missing 'expected' field"
+                    assert "status" in test_case, f"Test case missing 'status' field"
+                    assert test_case["status"] == TestStatus.OK, f"Pass test case status must be '{TestStatus.OK}'"
                 
             # Validate retry test cases
             for test_case in parsed_response["test_cases"]["retry"]:
@@ -57,9 +58,11 @@ class TestResponseParser(ResponseParser):
                 assert test_case["status"] == TestStatus.FAIL, f"Retry test case status must be '{TestStatus.FAIL}'"
         
         if "function_suggestion" in parsed_response:
-            assert isinstance(parsed_response["function_suggestion"], list), "function_suggestion must be a list"
-            for func in parsed_response["function_suggestion"]:
-                assert isinstance(func, str), "function_suggestion items must be strings"
+            if isinstance(parsed_response["function_suggestion"], list):
+                for func in parsed_response["function_suggestion"]:
+                    assert isinstance(func, str), "function_suggestion items must be strings"
+            else:
+                assert isinstance(parsed_response["function_suggestion"], str), "function_suggestion must be a string"
         
         if "test_code" in parsed_response:
             assert isinstance(parsed_response["test_code"], str), "test_code must be string"

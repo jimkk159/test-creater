@@ -7,54 +7,61 @@ from ..constants import BORDER, SYSTEM_MAX_LOOP, TestActions, TestKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
+
 class ReviseNode(Node):
     """Node responsible for revising failed test cases"""
-    
+
     def prep(self, shared):
         """Prepare revision prompt"""
         print(BORDER)
         print("💭 AI review the test result...")
-        
+
         function_name = self.params["function_name"]
         TestSharedManager.increment_iteration_count(shared, function_name)
-        
-        test_cases = shared.get(TestKeys.TEST_CASES, {}) 
-        failed_tests = shared.get(TestKeys.FAILED_TESTS, {}) 
-        
+
+        test_cases = shared.get(TestKeys.TEST_CASES, {})
+        failed_tests = shared.get(TestKeys.FAILED_TESTS, {})
+
         try:
             # Format test cases for prompt
             formatted_tests = ""
-            for function_name, test_case_list in test_cases.items():
-                formatted_tests += TestFormatter.format_test_cases(test_case_list, function_name)
-            
+            formatted_tests += TestFormatter.format_test_cases(
+                test_cases[function_name], function_name
+            )
+
             # Format failed tests for prompt
-            formatted_failures = TestFormatter.format_failed_tests(failed_tests)
-            
+            formatted_failures = TestFormatter.format_failed_tests(
+                failed_tests[function_name]
+            )
+
             # Get functions from shared
             functions = shared.get(TestKeys.FUNCTIONS, {})
-            
+
+            # Get test code from shared
+            test_code = shared.get(TestKeys.TEST_CODE, {})
+
             # Get error prompt
-            error_prompt = get_error_prompt(shared, ['revise', function_name])
-            
+            error_prompt = get_error_prompt(shared, ["revise", function_name])
+
             return TestPromptBuilder.build_revise_prompt(
                 formatted_tests,
                 functions,
+                test_code[function_name],
                 formatted_failures,
-                error_prompt
+                error_prompt,
             )
+
         except Exception as e:
             print(f"Error preparing revision prompt: {e}")
             return {"error": e}
 
     def exec(self, prompt_input):
         """Revise test cases using LLM"""
-        try:
-            response = call_llm(prompt_input)
-            parsed_response = TestResponseParser.parse_yaml_response(response)
-            TestResponseParser.validate_revise_response(parsed_response)
-            return parsed_response
-        except Exception as e:
-            raise e
+        # print(1111, prompt_input)
+        response = call_llm(prompt_input)
+        parsed_response = TestResponseParser.parse_yaml_response(response)
+        TestResponseParser.validate_revise_response(parsed_response)
+        return parsed_response
 
     def exec_fallback(self, prep_res, exc):
         """Handle revision errors"""
@@ -63,12 +70,12 @@ class ReviseNode(Node):
     def post(self, shared, prep_res, response):
         """Process revision results"""
         function_name = self.params["function_name"]
-        
+
         if "error" in response:
             return handle_max_iteration_error(
                 shared, response, BORDER, SYSTEM_MAX_LOOP, ["revise", function_name]
             )
-        
+
         action = response.get("action")
         if action == "pass":
             print("✅ All tests passed!")
@@ -76,7 +83,7 @@ class ReviseNode(Node):
         elif action == "error":
             print("❌ Error occurred during revision")
             return TestActions.ERROR
-        elif action == "review":
+        elif action == "revise":
             self._print_revisions(response.get("test_cases", {}))
             TestSharedManager.store_revisions(shared, function_name, response)
             return TestActions.REVISE
@@ -87,9 +94,10 @@ class ReviseNode(Node):
     def _print_revisions(self, test_cases):
         """Print revision details"""
         print("\n=== Test Case Revisions ===")
-        for test_case in test_cases:
-            print(f"\nTest Case: {test_case['name']}")
-            print(f"Status: {test_case['status']}")
-            print(f"Input: {test_case['input']}")
-            print(f"Expected: {test_case['expected']}")
-        print("\n" + "-" * 50) 
+        for type_name, test_cases_list in test_cases.items():
+            for test_case in test_cases_list:
+                print(f"\nTest Case: {test_case['name']}")
+                print(f"Status: {test_case['status']}")
+                print(f"Input: {test_case['input']}")
+                print(f"Expected: {test_case['expected']}")
+            print("\n" + type_name.center(50, "-"))
