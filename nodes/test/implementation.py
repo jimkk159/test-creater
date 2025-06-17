@@ -52,5 +52,4 @@ class ImplementFunctionNode(Node):
             return handle_max_iteration_error(
                 shared, test_code, BORDER, SYSTEM_MAX_LOOP, ["implement", function_name]
             )
-        print(111, test_code)
         TestSharedManager.store_test_code(shared, function_name, test_code) 

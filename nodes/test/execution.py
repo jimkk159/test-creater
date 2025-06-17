@@ -1,8 +1,6 @@
 import re
-import pprint
 from myPocketFlow import AsyncParallelBatchNode
 from utils.code_executor import execute_jest_test, extract_test_counts
-from utils.utils import extract_describe_blocks
 
 from ..shared import TestSharedManager
 from ..formatters import TestFormatter
@@ -20,7 +18,7 @@ class RunTestsNode(AsyncParallelBatchNode):
         TestSharedManager.set_max_iterations(shared, shared.get("max_iteration", MAX_ITERATION))
         TestSharedManager.init_function_suite_iterations(shared, function_name)
 
-        return extract_describe_blocks(shared[TestKeys.TEST_CODE][function_name])
+        return [shared[TestKeys.TEST_CODE][function_name]]
     
     async def exec_async(self, test_code):
         """Execute individual test suite"""
@@ -28,7 +26,6 @@ class RunTestsNode(AsyncParallelBatchNode):
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
 
         output = await execute_jest_test(test_code)
-        pprint.pprint(output)
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)
@@ -64,7 +61,7 @@ class RunTestsNode(AsyncParallelBatchNode):
         }
 
     async def post_async(self, shared, prep_res, exec_res_list):
-        """Process test execution results"""
+        """Process test execution results"""     
         function_name = self.params["function_name"]
         total_tests = passed_tests = failed_tests = suite_failed_tests = 0
         all_failed_details = []
