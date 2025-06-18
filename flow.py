@@ -58,6 +58,11 @@ def Implement_flow():
 # --- Flow Creation ---
 def Run_test_flow():
     """Creates and returns the parallel translation flow."""
+    copy_file_node = CopyFileNode(
+        dir_path=os.path.join(os.getcwd(), SystemConfig.TEST_DIRECTORY), 
+        suffix="_suggestion",
+        is_use_function_name=True
+    )
     generate_test_cases = GenerateTestCasesNode(max_retries=1, wait=0)
     implement_flow = Implement_flow()
 
@@ -66,6 +71,7 @@ def Run_test_flow():
     return_default_node = ReturnDefaultActionNode()
 
     # Error handling
+    copy_file_node >> generate_test_cases
     generate_test_cases - "error" >> generate_test_cases
     implement_flow - "error" >> implement_flow
     revise - 'error' >> revise
@@ -76,7 +82,7 @@ def Run_test_flow():
     run_tests >> return_default_node
     revise >> run_tests
 
-    return AsyncFlow(start=generate_test_cases)
+    return AsyncFlow(start=copy_file_node)
 
 
 class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
@@ -101,7 +107,7 @@ def auto_code_test_generate_flow():
     # Create flows or nodes
     read_and_find_file_flow = Read_and_find_file_flow()
     analyze_node = AnalyzeNode()
-    copy_file_node = CopyFileNode(dir_path = os.path.join(os.getcwd(), SystemConfig.TEST_DIRECTORY), suffix = "_suggestion")
+
     run_test_flow = Run_test_flow()
 
     # Create a batch flow for running tests on each function
@@ -109,8 +115,7 @@ def auto_code_test_generate_flow():
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
-    analyze_node >> copy_file_node
-    copy_file_node >> function_parallel_batch
+    analyze_node >> function_parallel_batch
 
     # Create flow starting with test generation
     return AsyncFlow(start=read_and_find_file_flow)

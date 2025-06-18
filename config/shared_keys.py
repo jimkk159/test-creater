@@ -16,6 +16,7 @@ class SharedKeys:
     
     # Function and test keys
     FUNCTIONS = "functions"
+    FUNCTION_NAME = "function_name"
     TEST_CASES = "test_cases"
     TEST_CODE = "test_code"
     FUNCTION_SUGGESTION = "function_suggestion"

@@ -40,7 +40,6 @@ class ReviseNode(Node):
             # Get test code from shared
             test_code_dict = shared.get(SharedKeys.TEST_CODE, {})
             test_code = test_code_dict[function_name]
-
             # Get test code from shared
             file_path = shared.get(SharedKeys.FILE_PATH, "")
             suggested_file_path = shared.get(SharedKeys.SUGGESTED_FILE_PATH, "")
@@ -49,7 +48,7 @@ class ReviseNode(Node):
             pattern = (
                 rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
             )
-            replacement = rf"\1{os.path.abspath(suggested_file_path)}\2"
+            replacement = rf"\1{os.path.abspath(suggested_file_path[function_name])}\2"
 
             # Perform the replacement
             new_test_code = re.sub(pattern, replacement, test_code)
@@ -107,7 +106,7 @@ class ReviseNode(Node):
                 response[SharedKeys.TEST_CODE],
                 response[SharedKeys.FUNCTION_SUGGESTION],
             )
-            with open(shared[SharedKeys.SUGGESTED_FILE_PATH], "w") as f:
+            with open(shared[SharedKeys.SUGGESTED_FILE_PATH][function_name], "w") as f:
                 f.write(shared[SharedKeys.FUNCTIONS][function_name])
 
             return TestActions.DEFAULT

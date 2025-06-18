@@ -110,7 +110,7 @@ async def main():
 
     # Create and run the flow
     flow = auto_code_test_generate_flow()
-    await flow.run_async(read_and_find_file_shared)
+    await flow.run_async(shared)
 
 
 if __name__ == "__main__":
