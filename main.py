@@ -6,123 +6,94 @@ BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"
 
 read_and_find_file_shared = {
-    "error": {"decide": {}},
-    "file": {
-        "action": "done",
-        "parameters": {},
-        "result": "",
-        "thinking": "",
-        "tool_info": "",
-        "tool_name": None,
-        "tool_result": "function add(a, b) {\n"
-        "    return a + b;\n"
-        "}\n"
-        "\n"
-        "module.exports = { add };\n"
-        "\n",
-        "tools": [],
-    },
-    "file_path": "test/myMath.js",
-    "suggested_file_path":  "test/myMath_suggestion.js",
     "question": "what is the content in the file myMath.js!",
+    "file": {
+        "tools": [],
+        "tool_info": '[1] read_file_tool\n  Description: Reads the content of a file. \n   Usually you need to check where the target file are located first by tool read_directory_tree_tool\n\nArgs:\n    path: The path to the file.\n    example: "."\n\nReturns:\n    The content of the file as a string.\n\n  Parameters:\n    - path (string): (Required)\n[2] read_directory_tree_tool\n  Description: Reads the recursive directory tree structure of a given path and formats it as a string.\n\nArgs:\n    path: The path to the directory. Defaults to the current directory.\n    indent: Internal parameter for formatting indentation.\n    is_last: Internal parameter to indicate if the current item is the last in its parent directory.\n\nReturns:\n    A string representing the directory tree.\n\n  Parameters:\n    - path (string): (Optional)\n    - indent (string): (Optional)\n    - is_last (boolean): (Optional)',
+        "action": "done",
+        "tool_name": None,
+        "parameters": {},
+        "thinking": 'The question is asking for the content of the file "myMath.js". Based on the previous action result, I already have the content of that file, which includes a function definition for adding two numbers and the module export statement.\n',
+        "tool_result": "function add(a, b) {\n    return a + b;\n}\n\nmodule.exports = { add };\n\n",
+        "result": "✅ FILE CONTENT:\nfunction add(a, b) {\n    return a + b;\n}\n\nmodule.exports = { add };",
+    },
+    "error": {"decide": {}},
+    "file_path": "test/myMath.js",
     "analyze": {
         "file_content": "function add(a, b) {\n    return a + b;\n}\n\nmodule.exports = { add };\n\n"
     },
     "functions": {"add": "function add(a, b) {\n    return a + b;\n}"},
+    "suggested_file_path": "/Users/jim/test/test-creater/test/_20250618_0315c73.myMath_suggestion.js",
+    "generateTestCases": {"add": {}},
     "test_cases": {
         "add": {
             "init": [
                 {
-                    "name": "Basic case - adding two positive numbers",
-                    "explain": "Testing the addition of two positive integers.",
-                    "input": {"param1": 5, "param2": 7},
-                    "expected": 12,
-                },
-                {
-                    "name": "Basic case - adding a positive and a negative number",
-                    "explain": "Testing the addition of a positive integer and a negative integer.",
-                    "input": {"param1": 10, "param2": -3},
-                    "expected": 7,
-                },
-                {
-                    "name": "Edge case - adding zero",
-                    "explain": "Testing the addition of a number with zero.",
-                    "input": {"param1": 15, "param2": 0},
+                    "name": "Basic case - two positive numbers",
+                    "explain": "Testing the addition of two basic positive numbers.",
+                    "input": {"a": 5, "b": 10},
                     "expected": 15,
                 },
                 {
-                    "name": "Edge case - adding two zeros",
-                    "explain": "Testing the addition of zero with zero.",
-                    "input": {"param1": 0, "param2": 0},
+                    "name": "Basic case - negative and positive number",
+                    "explain": "Testing the addition of a negative number and a positive number.",
+                    "input": {"a": -3, "b": 7},
+                    "expected": 4,
+                },
+                {
+                    "name": "Edge case - zero",
+                    "explain": "Testing addition of zero with a positive number.",
+                    "input": {"a": 0, "b": 10},
+                    "expected": 10,
+                },
+                {
+                    "name": "Edge case - zero with negative number",
+                    "explain": "Testing addition of zero with a negative number.",
+                    "input": {"a": 0, "b": -5},
+                    "expected": -5,
+                },
+                {
+                    "name": "Edge case - two zeros",
+                    "explain": "Testing the addition of two zero values.",
+                    "input": {"a": 0, "b": 0},
                     "expected": 0,
                 },
                 {
-                    "name": "Edge case - adding two negative numbers",
-                    "explain": "Testing the addition of two negative integers.",
-                    "input": {"param1": -4, "param2": -6},
-                    "expected": -10,
-                },
-                {
-                    "name": "Corner case - adding large numbers",
-                    "explain": "Testing the addition of two large positive integers.",
-                    "input": {"param1": 1000000, "param2": 2000000},
+                    "name": "Edge case - large numbers",
+                    "explain": "Testing the addition of two large positive numbers.",
+                    "input": {"a": 1000000, "b": 2000000},
                     "expected": 3000000,
                 },
                 {
-                    "name": "Input type check - adding a string and a number",
-                    "explain": "Testing behavior when the first input is a string.",
-                    "input": {"param1": "5", "param2": 3},
-                    "expected": "TypeError",
+                    "name": "Edge case - large negative numbers",
+                    "explain": "Testing the addition of two large negative numbers.",
+                    "input": {"a": -1000000, "b": -2000000},
+                    "expected": -3000000,
                 },
                 {
-                    "name": "Input type check - adding a null value",
-                    "explain": "Testing behavior when one of the inputs is null.",
-                    "input": {"param1": None, "param2": 5},
-                    "expected": "TypeError",
+                    "name": "Input type check - string input",
+                    "explain": "Testing the function with string input instead of numbers.",
+                    "input": {"a": "5", "b": "10"},
+                    "expected": "Error",
                 },
                 {
-                    "name": "Input type check - adding undefined values",
-                    "explain": "Testing behavior when one of the inputs is undefined.",
-                    "input": {"param1": "undefined", "param2": 7},
-                    "expected": "TypeError",
+                    "name": "Input type check - undefined input",
+                    "explain": "Testing the function with undefined as an input.",
+                    "input": {"a": "undefined", "b": 10},
+                    "expected": "Error",
+                },
+                {
+                    "name": "Input type check - NaN input",
+                    "explain": "Testing the function with NaN as an input.",
+                    "input": {"a": "NaN", "b": 10},
+                    "expected": "Error",
                 },
             ]
         }
     },
+    "implement": {"add": {}},
     "test_code": {
-        "add": "const { add } = require('/Users/jimchung/Desktop/Code/python/test-creater/test/myMath.js');\n\ndescribe('add', () => {\n    test('Basic case - adding two positive numbers', () => {\n        expect(add(5, 7)).toBe(12);\n    });\n\n    test('Basic case - adding a positive and a negative number', () => {\n        expect(add(10, -3)).toBe(7);\n    });\n\n    test('Edge case - adding zero', () => {\n        expect(add(15, 0)).toBe(15);\n    });\n\n    test('Edge case - adding two zeros', () => {\n        expect(add(0, 0)).toBe(0);\n    });\n\n    test('Edge case - adding two negative numbers', () => {\n        expect(add(-4, -6)).toBe(-10);\n    });\n\n    test('Corner case - adding large numbers', () => {\n        expect(add(1000000, 2000000)).toBe(3000000);\n    });\n\n    test('Input type check - adding a string and a number', () => {\n        expect(() => add('5', 3)).toThrow(TypeError);\n    });\n\n    test('Input type check - adding a null value', () => {\n        expect(() => add(null, 5)).toThrow(TypeError);\n    });\n\n    test('Input type check - adding undefined values', () => {\n        expect(() => add(undefined, 7)).toThrow(TypeError);\n    });\n});"
-    },
-    "max_iterations": 5,
-    "suite_iterations": {"add": {"add": 1}},
-    "passed": {"add": 6},
-    "total_tests": {"add": 9},
-    "failed_tests": {
-        "add": [
-            {
-                "suite": "add",
-                "test_case": "Input type check - adding a string and a number",
-                "passed": False,
-                "received": None,
-                "expected": None,
-                "description": "add › Input type check - adding a string and a number\nexpect(received).toThrow(expected)\n\n    Expected constructor: TypeError\n\n    Received function did not throw\n\n      27 |\n      28 |     test('Input type check - adding a string and a number', () => {\n    > 29 |         expect(() => add('5', 3)).toThrow(TypeError);\n         |                                   ^\n      30 |     });\n      31 |\n      32 |     test('Input type check - adding a null value', () => {\n\n      at Object.toThrow (test/temp_jest_3r8rh0re.test.js:29:35)",
-            },
-            {
-                "suite": "add",
-                "test_case": "Input type check - adding a null value",
-                "passed": False,
-                "received": None,
-                "expected": None,
-                "description": "add › Input type check - adding a null value\nexpect(received).toThrow(expected)\n\n    Expected constructor: TypeError\n\n    Received function did not throw\n\n      31 |\n      32 |     test('Input type check - adding a null value', () => {\n    > 33 |         expect(() => add(null, 5)).toThrow(TypeError);\n         |                                    ^\n      34 |     });\n      35 |\n      36 |     test('Input type check - adding undefined values', () => {\n\n      at Object.toThrow (test/temp_jest_3r8rh0re.test.js:33:36)",
-            },
-            {
-                "suite": "add",
-                "test_case": "Input type check - adding undefined values",
-                "passed": False,
-                "received": None,
-                "expected": None,
-                "description": "add › Input type check - adding undefined values\nexpect(received).toThrow(expected)\n\n    Expected constructor: TypeError\n\n    Received function did not throw\n\n      35 |\n      36 |     test('Input type check - adding undefined values', () => {\n    > 37 |         expect(() => add(undefined, 7)).toThrow(TypeError);\n         |                                         ^\n      38 |     });\n      39 | });\n\n      at Object.toThrow (test/temp_jest_3r8rh0re.test.js:37:41)",
-            },
-        ]
+        "add": "const { add } = require('/Users/jim/test/test-creater/test/myMath.js');\n\ndescribe('add function', () => {\n    test('Basic case - two positive numbers', () => {\n        expect(add(5, 10)).toBe(15);\n    });\n\n    test('Basic case - negative and positive number', () => {\n        expect(add(-3, 7)).toBe(4);\n    });\n\n    test('Edge case - zero', () => {\n        expect(add(0, 10)).toBe(10);\n    });\n\n    test('Edge case - zero with negative number', () => {\n        expect(add(0, -5)).toBe(-5);\n    });\n\n    test('Edge case - two zeros', () => {\n        expect(add(0, 0)).toBe(0);\n    });\n\n    test('Edge case - large numbers', () => {\n        expect(add(1000000, 2000000)).toBe(3000000);\n    });\n\n    test('Edge case - large negative numbers', () => {\n        expect(add(-1000000, -2000000)).toBe(-3000000);\n    });\n\n    test('Input type check - string input', () => {\n        expect(() => add(\"5\", 10)).toThrow(Error);\n    });\n\n    test('Input type check - undefined input', () => {\n        expect(() => add(undefined, 10)).toThrow(Error);\n    });\n\n    test('Input type check - NaN input', () => {\n        expect(() => add(NaN, 10)).toThrow(Error);\n    });\n});"
     },
 }
 
@@ -139,7 +110,7 @@ async def main():
 
     # Create and run the flow
     flow = auto_code_test_generate_flow()
-    await flow.run_async(shared)
+    await flow.run_async(read_and_find_file_shared)
 
 
 if __name__ == "__main__":

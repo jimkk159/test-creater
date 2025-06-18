@@ -1,6 +1,3 @@
-# Test-specific constants
-MAX_ITERATION = 5
-
 # Test action types
 class TestActions:
     PASS = "pass"

@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from config import SystemConfig
 
@@ -51,6 +52,50 @@ class TestFormatter:
             f"--- Aggregate {function_name} Test Results: {passed}/{total} Passed ---"
         )
         print(title)
+
+    @staticmethod
+    def print_failed_test_details(failed_details, border_len=SystemConfig.BORDER_LEN):
+        """Pretty print failed test details in a readable format"""
+        if not failed_details:
+            return
+            
+        print("\n" + "=" * border_len)
+        print("🔴 FAILED TEST DETAILS")
+        print("=" * border_len)
+        
+        for i, detail in enumerate(failed_details, 1):
+            print(f"\n📋 Failure #{i}")
+            print(f"   Suite:     {detail.get('suite', 'Unknown')}")
+            print(f"   Test:      {detail.get('test_case', 'Unknown')}")
+            print(f"   Status:    {'❌ FAILED' if not detail.get('passed', True) else '✅ PASSED'}")
+            
+            # Extract the core error message from description
+            description = detail.get('description', '')
+            if 'Expected substring:' in description and 'Received function did not throw' in description:
+                expected_match = re.search(r'Expected substring: "([^"]+)"', description)
+                expected = expected_match.group(1) if expected_match else 'Unknown error'
+                print(f"   Issue:     Function should throw error: '{expected}'")
+                print(f"   Problem:   Function executed without throwing")
+            elif 'expect(received).toBe(expected)' in description:
+                print(f"   Issue:     Value assertion failed")
+                if detail.get('expected') is not None:
+                    print(f"   Expected:  {detail['expected']}")
+                if detail.get('received') is not None:
+                    print(f"   Received:  {detail['received']}")
+            elif 'toThrowError' in description:
+                print(f"   Issue:     Expected function to throw an error")
+                print(f"   Problem:   Function completed without throwing")
+            else:
+                # Fallback for other error types
+                print(f"   Issue:     Test assertion failed")
+                if detail.get('expected') is not None:
+                    print(f"   Expected:  {detail['expected']}")
+                if detail.get('received') is not None:
+                    print(f"   Received:  {detail['received']}")
+            
+            print(f"   {'─' * (border_len - 3)}")
+        
+        print("\n" + "=" * border_len)
 
 
 class TestPromptBuilder:
@@ -219,6 +264,7 @@ Choose one of the following actions: [pass, revise, error]
 3. Include the complete revised test code in the "test_code" section.
 4. If the original function has a bug, include the corrected version in the "function_suggestion" section.
 5. The test code require path should match the suggested file path.
+6. Function Suggestion must include import references, functions itself and function exportations for test file to run it.
 
 ### TEST RESULT INFORMATION
 
@@ -264,8 +310,7 @@ test_cases:
           expected: ...
             status: fail
 
-function_suggestion:  
-    <function_content>  
+function_suggestion:  # Entire function file content, include function's reference, content and export    
 test_code:  # Include if test code is revised
 ```
 
@@ -281,4 +326,21 @@ test_cases:
               b: 3
           expected: 5
           status: "ok"
+function_suggestion: |
+    function add(a, b) {{
+        if (typeof a !== 'number' || typeof b !== 'number' || isNaN(a) || isNaN(b)) {{
+            throw new Error("Invalid input: both parameters must be numbers.");
+        }}
+        return a + b;
+    }}
+
+    module.exports = {{ add }};
+test_code: |
+    const {{ add }} = require('...');
+    
+    describe('add function', () => {{
+        test('Basic case - positive integers', () => {{
+            expect(add(5, 3)).toBe(8);
+        }});
+    }});
 """

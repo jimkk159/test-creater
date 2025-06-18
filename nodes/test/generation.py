@@ -51,4 +51,4 @@ class GenerateTestCasesNode(Node):
                 shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["generateTestCases", function_name]
             )
         TestSharedManager.store_test_cases(shared, function_name, response["test_cases"])
-        TestFormatter.print_test_cases(response["test_cases"]) 
+        # TestFormatter.print_test_cases(response["test_cases"]) 

@@ -12,7 +12,7 @@ class SystemConfig:
     BORDER = f"{'=' * BORDER_LEN}"
 
     # Test configuration
-    MAX_ITERATION = 2
+    MAX_ITERATION = 3
     TEST_DIRECTORY = "test"
 
     # MCP Server configuration

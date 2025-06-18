@@ -81,9 +81,6 @@ class ReviseNode(Node):
         return {"error": exc}
 
     def post(self, shared, prep_res, response):
-        print('-' * 50 )
-        print(3333, "revise response", response)
-        print('-' * 50 )
         """Process revision results"""
         function_name = self.params["function_name"]
         if "error" in response:
@@ -121,11 +118,11 @@ class ReviseNode(Node):
     def _print_revisions(self, test_cases):
         """Print revision details"""
         print("\n=== Test Case Revisions ===")
-        for type_name, test_cases_list in test_cases.items():
-            print("\n" + type_name.center(50, "-"))
-            for test_case in test_cases_list:
-                print(f"\nTest Case: {test_case['name']}")
-                print(f"Status: {test_case['status']}")
-                print(f"Input: {test_case['input']}")
-                print(f"Expected: {test_case['expected']}")
+        # for type_name, test_cases_list in test_cases.items():
+        print("\n" + 'retry'.center(50, "-"))
+        for test_case in test_cases['retry']:
+            print(f"\nTest Case: {test_case['name']}")
+            print(f"Status: {test_case['status']}")
+            print(f"Input: {test_case['input']}")
+            print(f"Expected: {test_case['expected']}")
         print("\n" + "-" * 50)
