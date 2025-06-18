@@ -1,24 +1,22 @@
 import os
-import shutil
+from utils.utils import copy_file
 from myPocketFlow import Node
-from ..constants import SharedKeys
+from config import SharedKeys
 
 class CopyFileNode(Node):
-    def __init__(self, dir_path, prefix="", suffix="_copy"):
+    def __init__(self, dir_path, suffix="_copy"):
         super().__init__()
         self.dir_path = dir_path
         self.suffix = suffix
-        self.prefix = prefix
 
     def prep(self, shared):
-        self.source = shared["file_path"]
+        self.source = shared[SharedKeys.FILE_PATH]
         base_name = os.path.basename(self.source)
         name, ext = os.path.splitext(base_name)
-        self.file_name = f"{self.prefix}{name}{self.suffix}{ext}"
-        self.destination = os.path.join(self.dir_path, self.file_name)
+        self.file_name = f"{name}{self.suffix}{ext}"
 
     def exec(self, _):
-        shutil.copyfile(self.source, self.destination)
+        self.destination = copy_file(self.source, self.file_name)
 
     def post(self, shared, prep_res, exec_res):
         shared[SharedKeys.SUGGESTED_FILE_PATH] = os.path.abspath(self.destination)

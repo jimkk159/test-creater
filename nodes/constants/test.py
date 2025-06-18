@@ -11,7 +11,7 @@ class TestActions:
     MAX_ITERATIONS = "max_iterations"
 
 # Test shared keys
-class TestKeys:
+class SharedKeys:
     ANALYZE = "analyze"
     FILE_CONTENT = "file_content"
     FUNCTIONS = "functions"
@@ -25,10 +25,3 @@ class TestKeys:
     ITERATION_COUNT = "iteration_count"
     FUNCTION_SUGGESTION = "function_suggestion"
     IMPLEMENT = "implement"
-
-# Test status types
-class TestStatus:
-    OK = "ok"
-    FAIL = "fail"
-    PASSED = "passed"
-    FAILED = "failed" 

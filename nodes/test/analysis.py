@@ -3,7 +3,7 @@ from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP
+from config import SharedKeys, SystemConfig
 from ..formatters.test import TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -12,14 +12,14 @@ class AnalyzeNode(Node):
     
     def prep(self, shared):
         """Prepare analysis prompt"""
-        print(BORDER)
+        print(SystemConfig.BORDER)
         print("🔍 Analyze the file content...")
         
-        TestSharedManager.store_file_content(shared, shared["file"]["tool_result"])
+        TestSharedManager.store_file_content(shared, shared[SharedKeys.FILE]["tool_result"])
         error_prompt = get_error_prompt(shared, ['analyze'])
         
         return TestPromptBuilder.build_analyze_prompt(
-            shared["file"]["tool_result"], 
+            shared[SharedKeys.FILE]["tool_result"], 
             error_prompt
         )
 
@@ -36,9 +36,9 @@ class AnalyzeNode(Node):
         """Store extracted functions"""
         if "error" in functions:
             return handle_max_iteration_error(
-                shared, functions, BORDER, SYSTEM_MAX_LOOP, ["analyze"]
+                shared, functions, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["analyze"]
             )
         
         TestSharedManager.store_functions(shared, functions)
-        print(BORDER)
+        print(SystemConfig.BORDER)
         print(f"⛏️ extracted functions: {list(functions.keys())}") 

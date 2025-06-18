@@ -4,27 +4,29 @@ from utils.code_executor import execute_jest_test, extract_test_counts
 
 from ..shared import TestSharedManager
 from ..formatters import TestFormatter
-from ..constants import BORDER, TestActions, TestKeys, MAX_ITERATION
+from config import SystemConfig, TestActions, SharedKeys
 
 class RunTestsNode(AsyncParallelBatchNode):
     """Node responsible for executing test functions in parallel"""
     
     async def prep_async(self, shared):
         """Prepare test execution"""
-        print(BORDER)
+        print(SystemConfig.BORDER)
         print("🏃 Running test functions...")
         
         function_name = self.params["function_name"]
-        TestSharedManager.set_max_iterations(shared, shared.get("max_iteration", MAX_ITERATION))
+        TestSharedManager.set_max_iterations(shared, shared.get("max_iteration", SystemConfig.MAX_ITERATION))
         TestSharedManager.init_function_suite_iterations(shared, function_name)
 
-        return [shared[TestKeys.TEST_CODE][function_name]]
+        return [shared[SharedKeys.TEST_CODE][function_name]]
     
     async def exec_async(self, test_code):
         """Execute individual test suite"""
         suite_match = re.search(r"describe\('([^']+)'", test_code)
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
+
         output = await execute_jest_test(test_code)
+        print(output)
         end = output["end"]
         details = output["details"]
         test_counts = extract_test_counts(end)

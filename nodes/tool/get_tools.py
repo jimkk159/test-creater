@@ -1,6 +1,6 @@
 import os
 from .base import BaseAsyncToolNode
-from ..constants import MCP_SERVER_PATH
+from config import SystemConfig
 from ..shared import ToolSharedManager
 from ..formatters.tool import ToolFormatter
 from utils.utils import get_tools
@@ -14,7 +14,7 @@ class GetToolsNode(BaseAsyncToolNode):
         
         allowed_dir = os.environ.get("ALLOW_READ_FILE_PATH")
         workspace_root = os.getcwd()
-        absolute_server_path = os.path.join(workspace_root, MCP_SERVER_PATH)
+        absolute_server_path = os.path.join(workspace_root, SystemConfig.MCP_SERVER_PATH)
         
         if not absolute_server_path.startswith(allowed_dir):
             raise ValueError(
@@ -22,7 +22,7 @@ class GetToolsNode(BaseAsyncToolNode):
                 f"is not located within the allowed directory ({allowed_dir})."
             )
         
-        return MCP_SERVER_PATH
+        return SystemConfig.MCP_SERVER_PATH
 
     async def exec_async(self, server_path):
         """Retrieve tools from the MCP server"""

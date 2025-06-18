@@ -3,7 +3,7 @@ from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP, TestKeys
+from config import SystemConfig, SharedKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -12,13 +12,13 @@ class GenerateTestCasesNode(Node):
     
     def prep(self, shared):
         """Prepare test case generation prompt"""
-        if TestKeys.FUNCTIONS not in shared or not shared[TestKeys.FUNCTIONS]:
+        if SharedKeys.FUNCTIONS not in shared or not shared[SharedKeys.FUNCTIONS]:
             raise ValueError("No functions found in shared context")
 
         function_name = self.params["function_name"]
         function_content = self.params["function_content"]
         
-        print(f"{BORDER}\n🧪 Generate {function_name} test cases...")
+        print(f"{SystemConfig.BORDER}\n🧪 Generate {function_name} test cases...")
         
         error_prompt = get_error_prompt(shared, ['generateTestCases', function_name])
         
@@ -48,7 +48,7 @@ class GenerateTestCasesNode(Node):
         
         if "error" in response:
             return handle_max_iteration_error(
-                shared, response, BORDER, SYSTEM_MAX_LOOP, ["generateTestCases", function_name]
+                shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["generateTestCases", function_name]
             )
         TestSharedManager.store_test_cases(shared, function_name, response["test_cases"])
         TestFormatter.print_test_cases(response["test_cases"]) 

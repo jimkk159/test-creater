@@ -1,5 +1,5 @@
 from .base import BaseSharedManager
-from ..constants import SharedKeys
+from config import SharedKeys
 
 class ToolSharedManager(BaseSharedManager):
     @staticmethod

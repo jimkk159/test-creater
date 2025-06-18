@@ -2,6 +2,9 @@ from .base import *
 from .tool import *
 from .test import *
 
+# Import centralized config and re-export for backward compatibility
+from config import SharedKeys, Actions, TestActions, ToolActions, SystemConfig
+
 
 __all__ = [
    # Base nodes

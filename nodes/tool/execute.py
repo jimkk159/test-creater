@@ -1,5 +1,5 @@
 from .base import BaseAsyncToolNode
-from ..constants import Actions, MCP_SERVER_PATH
+from config import Actions, SystemConfig
 from ..shared import ToolSharedManager
 from utils.utils import call_tool
 
@@ -16,7 +16,7 @@ class ExecuteToolNode(BaseAsyncToolNode):
         """Execute the chosen tool with provided parameters"""
         tool_name, parameters = inputs
         print(f"🔧 Executing tool '{tool_name}' with parameters: {parameters}")
-        return await call_tool(MCP_SERVER_PATH, tool_name, parameters)
+        return await call_tool(SystemConfig.MCP_SERVER_PATH, tool_name, parameters)
 
     async def post_async(self, shared, prep_res, result):
         """Store tool execution result"""

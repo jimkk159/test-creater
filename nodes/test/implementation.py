@@ -3,7 +3,7 @@ from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager, ToolSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP, SharedKeys, TestKeys
+from config import SystemConfig, SharedKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -12,12 +12,12 @@ class ImplementFunctionNode(Node):
     
     def prep(self, shared):
         """Prepare implementation prompt"""
-        print(BORDER)
+        print(SystemConfig.BORDER)
         print("📝 Implementing test cases...")
         function_name = self.params["function_name"]
         file_path = shared[SharedKeys.FILE_PATH]
-        functions = shared[TestKeys.FUNCTIONS][function_name]
-        test_cases = shared[TestKeys.TEST_CASES][function_name]["init"]
+        functions = shared[SharedKeys.FUNCTIONS][function_name]
+        test_cases = shared[SharedKeys.TEST_CASES][function_name]["init"]
 
         formatted_tests = TestFormatter.format_test_cases(test_cases)
         error_prompt = ""
@@ -46,6 +46,6 @@ class ImplementFunctionNode(Node):
         
         if "error" in test_code:
             return handle_max_iteration_error(
-                shared, test_code, BORDER, SYSTEM_MAX_LOOP, ["implement", function_name]
+                shared, test_code, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["implement", function_name]
             )
         TestSharedManager.store_test_code(shared, function_name, test_code) 

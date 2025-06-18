@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
-from ..constants import BORDER_LEN
-from constants import TEST_DIRECTORY
+from config import SystemConfig
 
 
 class TestFormatter:
@@ -29,7 +28,7 @@ class TestFormatter:
         return formatted_failures
 
     @staticmethod
-    def print_test_cases(test_cases, border_len=BORDER_LEN):
+    def print_test_cases(test_cases, border_len=SystemConfig.BORDER_LEN):
         """Print formatted test cases"""
         print(f"\n=== Generated {len(test_cases)} Test Cases ===\n")
         for function_name, test_case_list in test_cases.items():
@@ -45,7 +44,7 @@ class TestFormatter:
         print("")
 
     @staticmethod
-    def print_test_results(function_name, passed, total, border_len=BORDER_LEN):
+    def print_test_results(function_name, passed, total, border_len=SystemConfig.BORDER_LEN):
         """Print test results summary"""
         print("-" * border_len)
         title = (
@@ -66,7 +65,7 @@ class TestPromptBuilder:
         """
 
         # Create prompts directory if it doesn't exist
-        prompts_dir = os.path.join(TEST_DIRECTORY, "prompts")
+        prompts_dir = os.path.join(SystemConfig.TEST_DIRECTORY, "prompts")
         os.makedirs(prompts_dir, exist_ok=True)
 
         # Create filename with timestamp

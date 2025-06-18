@@ -1,8 +1,9 @@
 import re
 import os
+import shutil
 import asyncio
 import subprocess
-from constants import TEST_DIRECTORY
+from config import SharedKeys, SystemConfig
 from datetime import datetime
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -35,7 +36,28 @@ def get_next_counter(base_dir):
     
     return counter
 
-def save_to_file(data, filename, base_dir=TEST_DIRECTORY, prefix=""):
+def copy_file(source, filename, base_dir=SystemConfig.TEST_DIRECTORY, prefix=""):
+    # Create absolute path for the directory
+    save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), base_dir)
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Generate date in YYYYMMDD format and get next counter
+    date_str = datetime.now().strftime('%Y%m%d')
+    # counter = get_next_counter(base_dir)
+    git_hash = get_git_hash()
+    
+    # Create full filename with prefix, date, git hash and counter
+    full_filename = f"{prefix}_{date_str}_{git_hash}.{filename}"
+    
+    # Create full file path
+    full_path = os.path.join(save_dir, full_filename)
+    
+    # Write the file
+    shutil.copyfile(source, full_path)
+    
+    return full_path
+
+def save_to_file(data, filename, base_dir=SystemConfig.TEST_DIRECTORY, prefix=""):
     """
     Save data to a file, creating the directory if it doesn't exist.
     
@@ -62,7 +84,7 @@ def save_to_file(data, filename, base_dir=TEST_DIRECTORY, prefix=""):
     
     # Create full file path
     full_path = os.path.join(save_dir, full_filename)
-    
+
     # Write the file
     with open(full_path, 'w', encoding='utf-8') as f:
         f.write(data)
@@ -180,7 +202,7 @@ def cleanup_temp_files(shared, target):
         return
 
     if target in shared:
-        for file_path in shared["temp_file_paths"].values():
+        for file_path in shared[SharedKeys.TEMP_FILE_PATHS].values():
             try:
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -235,11 +257,11 @@ def handle_max_iteration_error(shared, exec_res, border, max_loop, keys=[], retu
 
     print(border)
     # record the max loop number and decide if human should be called
-    if "max_loop" not in shared:
-        shared["max_loop"] = {}
+    if SharedKeys.MAX_LOOP not in shared:
+        shared[SharedKeys.MAX_LOOP] = {}
     
     # Navigate through the hierarchy using keys for max_loop
-    count = set_nested_value(shared["max_loop"], keys, increment=True, default=0)
+    count = set_nested_value(shared[SharedKeys.MAX_LOOP], keys, increment=True, default=0)
     
     if count >= max_loop:
         print(border)

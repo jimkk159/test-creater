@@ -5,7 +5,7 @@ from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP, TestActions, TestKeys, SharedKeys
+from config import SystemConfig, TestActions, SharedKeys, SharedKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -15,18 +15,18 @@ class ReviseNode(Node):
 
     def prep(self, shared):
         """Prepare revision prompt"""
-        print(BORDER)
+        print(SystemConfig.BORDER)
         print("💭 AI review the test result...")
 
         function_name = self.params["function_name"]
         TestSharedManager.increment_iteration_count(shared, function_name)
-        test_cases = shared.get(TestKeys.TEST_CASES, {})
-        failed_tests = shared.get(TestKeys.FAILED_TESTS, {})
+        test_cases = shared.get(SharedKeys.TEST_CASES, {})
+        failed_tests = shared.get(SharedKeys.FAILED_TESTS, {})
         try:
             # Format test cases for prompt
             formatted_tests = ""
             formatted_tests += TestFormatter.format_test_cases(
-                test_cases[function_name]['init']
+                test_cases[function_name]["init"]
             )
 
             # Format failed tests for prompt
@@ -35,10 +35,10 @@ class ReviseNode(Node):
             )
 
             # Get functions from shared
-            functions = shared.get(TestKeys.FUNCTIONS, {})
+            functions = shared.get(SharedKeys.FUNCTIONS, {})
 
             # Get test code from shared
-            test_code_dict = shared.get(TestKeys.TEST_CODE, {})
+            test_code_dict = shared.get(SharedKeys.TEST_CODE, {})
             test_code = test_code_dict[function_name]
 
             # Get test code from shared
@@ -81,11 +81,18 @@ class ReviseNode(Node):
         return {"error": exc}
 
     def post(self, shared, prep_res, response):
+        print('-' * 50 )
+        print(3333, "revise response", response)
+        print('-' * 50 )
         """Process revision results"""
         function_name = self.params["function_name"]
         if "error" in response:
             return handle_max_iteration_error(
-                shared, response, BORDER, SYSTEM_MAX_LOOP, ["revise", function_name]
+                shared,
+                response,
+                SystemConfig.BORDER,
+                SystemConfig.SYSTEM_MAX_LOOP,
+                ["revise", function_name],
             )
 
         action = response.get("action")
@@ -100,13 +107,12 @@ class ReviseNode(Node):
             TestSharedManager.store_revisions(
                 shared,
                 function_name,
-                response[TestKeys.TEST_CODE],
-                response[TestKeys.FUNCTION_SUGGESTION],
+                response[SharedKeys.TEST_CODE],
+                response[SharedKeys.FUNCTION_SUGGESTION],
             )
-            with open(
-                os.path.abspath(shared[SharedKeys.SUGGESTED_FILE_PATH]), "w"
-            ) as f:
+            with open(shared[SharedKeys.SUGGESTED_FILE_PATH], "w") as f:
                 f.write(shared[SharedKeys.FUNCTIONS][function_name])
+
             return TestActions.DEFAULT
         else:
             print(f"❌ Unknown action: {action}")

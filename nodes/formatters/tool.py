@@ -1,4 +1,4 @@
-from ..constants import SharedKeys
+from config import SharedKeys
 
 class ToolFormatter:
     @staticmethod

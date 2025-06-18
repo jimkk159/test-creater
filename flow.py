@@ -11,14 +11,15 @@ from nodes import (
 )
 
 from utils.utils import save_to_file
+from config import SharedKeys, SystemConfig
 
 
 def save_to_file_iteration(shared):
     test_codes_to_file = ""
-    if "test_code" not in shared:
-        shared["test_code"] = []
-    for i, func_name in enumerate(shared["test_code"]):
-        test_codes_to_file += f"{shared["test_code"][func_name]}\n\n"
+    if SharedKeys.TEST_CODE not in shared:
+        shared[SharedKeys.TEST_CODE] = []
+    for i, func_name in enumerate(shared[SharedKeys.TEST_CODE]):
+        test_codes_to_file += f"{shared[SharedKeys.TEST_CODE][func_name]}\n\n"
     save_to_file(test_codes_to_file, "final.test.js")
 
 
@@ -81,7 +82,7 @@ def Run_test_flow():
 class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
     async def prep_async(self, shared):
         # Get all functions from shared store
-        functions = shared.get("functions", {})
+        functions = shared.get(SharedKeys.FUNCTIONS, {})
         # Create a list of params for each function
         return [
             {"function_name": name, "function_content": content}
@@ -100,7 +101,7 @@ def auto_code_test_generate_flow():
     # Create flows or nodes
     read_and_find_file_flow = Read_and_find_file_flow()
     analyze_node = AnalyzeNode()
-    copy_file_node = CopyFileNode(dir_path = os.path.join(os.getcwd(), 'test'), suffix = "_suggestion")
+    copy_file_node = CopyFileNode(dir_path = os.path.join(os.getcwd(), SystemConfig.TEST_DIRECTORY), suffix = "_suggestion")
     run_test_flow = Run_test_flow()
 
     # Create a batch flow for running tests on each function
