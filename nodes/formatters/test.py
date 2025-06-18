@@ -344,3 +344,13 @@ test_code: |
         }});
     }});
 """
+    @staticmethod
+    def build_file_coordinator_prompt(test_codes, suggested_file_paths):
+        print(111, test_codes,)
+        print(222, suggested_file_paths)
+
+        return f"""
+
+
+"""
+
