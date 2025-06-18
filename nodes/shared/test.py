@@ -30,9 +30,10 @@ class TestSharedManager(BaseSharedManager):
         BaseSharedManager.store_value(shared, [TestKeys.TEST_CODE, function_name], test_code)
     
     @staticmethod
-    def store_revisions(shared, function_name, revisions):
+    def store_revisions(shared, function_name, revisions, function_suggestion):
         """Store revisions for a function"""
-        BaseSharedManager.store_value(shared, [TestKeys.REVISE, function_name], revisions)
+        BaseSharedManager.store_value(shared, [TestKeys.TEST_CODE, function_name], revisions)
+        BaseSharedManager.store_value(shared, [TestKeys.FUNCTIONS, function_name], function_suggestion)
 
     @staticmethod
     def init_test_tracking(shared):

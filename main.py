@@ -22,7 +22,8 @@ read_and_find_file_shared = {
         "\n",
         "tools": [],
     },
-    "file_path": "test/myMath_suggestion.js",
+    "file_path": "test/myMath.js",
+    "suggested_file_path":  "test/myMath_suggestion.js",
     "question": "what is the content in the file myMath.js!",
     "analyze": {
         "file_content": "function add(a, b) {\n    return a + b;\n}\n\nmodule.exports = { add };\n\n"
@@ -138,7 +139,7 @@ async def main():
 
     # Create and run the flow
     flow = auto_code_test_generate_flow()
-    await flow.run_async(read_and_find_file_shared)
+    await flow.run_async(shared)
 
 
 if __name__ == "__main__":

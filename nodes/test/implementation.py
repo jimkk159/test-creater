@@ -18,13 +18,10 @@ class ImplementFunctionNode(Node):
         file_path = shared[SharedKeys.FILE_PATH]
         functions = shared[TestKeys.FUNCTIONS][function_name]
         test_cases = shared[TestKeys.TEST_CASES][function_name]["init"]
-        
-        formatted_tests = TestFormatter.format_test_cases(test_cases, function_name)
+
+        formatted_tests = TestFormatter.format_test_cases(test_cases)
         error_prompt = ""
-        if 'error-implement' in shared:
-            error_prompt = get_error_prompt(shared, ['error-implement', 'revise', function_name])
-        else:
-            error_prompt = get_error_prompt(shared, ['implement', function_name])
+        error_prompt = get_error_prompt(shared, ['implement', function_name])
             
         prompt = TestPromptBuilder.build_implement_prompt(file_path, functions, formatted_tests, error_prompt)
         # prompt_file = TestPromptBuilder.save_prompt_to_file(prompt, 'implement', function_name)

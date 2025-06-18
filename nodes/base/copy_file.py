@@ -1,6 +1,7 @@
 import os
 import shutil
 from myPocketFlow import Node
+from ..constants import SharedKeys
 
 class CopyFileNode(Node):
     def __init__(self, dir_path, prefix="", suffix="_copy"):
@@ -20,4 +21,4 @@ class CopyFileNode(Node):
         shutil.copyfile(self.source, self.destination)
 
     def post(self, shared, prep_res, exec_res):
-        shared["file_path"] = os.path.abspath(self.destination)
+        shared[SharedKeys.SUGGESTED_FILE_PATH] = os.path.abspath(self.destination)

@@ -6,16 +6,15 @@ from constants import TEST_DIRECTORY
 
 class TestFormatter:
     @staticmethod
-    def format_test_cases(test_cases, function_name):
+    def format_test_cases(test_cases):
         """Format test cases for display"""
         formatted_tests = ""
-        for test_case_list in test_cases.values():
-            for j, test in enumerate(test_case_list, 1):
-                formatted_tests += f"- name: \"{test['name']}\"\n"
-                formatted_tests += f"  input:\n"
-                for i, key in enumerate(test["input"], 1):
-                    formatted_tests += f"    param{i}: {test['input'][key]}\n"
-                formatted_tests += f"  expected: {test['expected']}\n\n"
+        for test in test_cases:
+            formatted_tests += f"- name: \"{test['name']}\"\n"
+            formatted_tests += f"  input:\n"
+            for i, key in enumerate(test["input"], 1):
+                formatted_tests += f"    param{i}: {test['input'][key]}\n"
+            formatted_tests += f"  expected: {test['expected']}\n\n"
         return formatted_tests
 
     @staticmethod
@@ -195,7 +194,7 @@ function_code: |
 
     @staticmethod
     def build_revise_prompt(
-        test_cases, functions, test_code, formatted_failures, error_prompt=""
+        test_cases, curr_function, test_code, formatted_failures, error_prompt=""
     ):
         """Build prompt for revising failed tests"""
         return f"""
@@ -220,22 +219,24 @@ Choose one of the following actions: [pass, revise, error]
 2. Place passing test cases in the "pass" class and those to be retried in the "retry" class.
 3. Include the complete revised test code in the "test_code" section.
 4. If the original function has a bug, include the corrected version in the "function_suggestion" section.
+5. The test code require path should match the suggested file path.
 
 ### TEST RESULT INFORMATION
 
-Current test cases:
+- Current test cases:
 {test_cases if test_cases else "No test cases available"}
 
-Current function:
-{f"```javascript\\n{functions}\\n```" if functions else 'No functions available'}
+- Current function:
+{f"```javascript\\n{curr_function}\\n```" if curr_function else 'No functions available'}
 
-Current test code:
+- Current test code:
 {test_code}
 
-Failed tests:
+- Failed tests:
 {formatted_failures}
 
-Output in this YAML format:
+### Output in this YAML format:
+
 ```yaml
 action: <selected action>
 thinking: |
@@ -264,10 +265,9 @@ test_cases:
           expected: ...
             status: fail
 
-function_suggestion:  # Only include if the function needs to be revised
-    - <function_content>   # - is important, it's a list
+function_suggestion:  
+    <function_content>  
 test_code:  # Include if test code is revised
-
 ```
 
 ### EXAMPLE

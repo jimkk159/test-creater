@@ -51,7 +51,6 @@ def save_to_file(data, filename, base_dir=TEST_DIRECTORY, prefix=""):
     # Create absolute path for the directory
     save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), base_dir)
     os.makedirs(save_dir, exist_ok=True)
-    print(save_dir)
 
     # Generate date in YYYYMMDD format and get next counter
     date_str = datetime.now().strftime('%Y%m%d')

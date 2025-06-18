@@ -1,5 +1,5 @@
 from . import ResponseParser
-from ..constants import TestActions, TestStatus
+from ..constants import TestActions, TestStatus, TestKeys
 
 class TestResponseParser(ResponseParser):
     @staticmethod
@@ -57,12 +57,12 @@ class TestResponseParser(ResponseParser):
                 assert "status" in test_case, f"Test case missing 'status' field"
                 assert test_case["status"] == TestStatus.FAIL, f"Retry test case status must be '{TestStatus.FAIL}'"
         
-        if "function_suggestion" in parsed_response:
-            if isinstance(parsed_response["function_suggestion"], list):
-                for func in parsed_response["function_suggestion"]:
+        if TestKeys.FUNCTION_SUGGESTION in parsed_response:
+            if isinstance(parsed_response[TestKeys.FUNCTION_SUGGESTION], list):
+                for func in parsed_response[TestKeys.FUNCTION_SUGGESTION]:
                     assert isinstance(func, str), "function_suggestion items must be strings"
             else:
-                assert isinstance(parsed_response["function_suggestion"], str), "function_suggestion must be a string"
+                assert isinstance(parsed_response[TestKeys.FUNCTION_SUGGESTION], str), "function_suggestion must be a string"
         
         if "test_code" in parsed_response:
             assert isinstance(parsed_response["test_code"], str), "test_code must be string"

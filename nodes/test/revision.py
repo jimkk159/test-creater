@@ -1,9 +1,11 @@
+import os
+import re
 from myPocketFlow import Node
 from utils.call_llm.open_ai import call_llm
 from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager
-from ..constants import BORDER, SYSTEM_MAX_LOOP, TestActions, TestKeys
+from ..constants import BORDER, SYSTEM_MAX_LOOP, TestActions, TestKeys, SharedKeys
 from ..formatters.test import TestFormatter, TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
@@ -18,15 +20,13 @@ class ReviseNode(Node):
 
         function_name = self.params["function_name"]
         TestSharedManager.increment_iteration_count(shared, function_name)
-
         test_cases = shared.get(TestKeys.TEST_CASES, {})
         failed_tests = shared.get(TestKeys.FAILED_TESTS, {})
-
         try:
             # Format test cases for prompt
             formatted_tests = ""
             formatted_tests += TestFormatter.format_test_cases(
-                test_cases[function_name], function_name
+                test_cases[function_name]['init']
             )
 
             # Format failed tests for prompt
@@ -38,15 +38,29 @@ class ReviseNode(Node):
             functions = shared.get(TestKeys.FUNCTIONS, {})
 
             # Get test code from shared
-            test_code = shared.get(TestKeys.TEST_CODE, {})
+            test_code_dict = shared.get(TestKeys.TEST_CODE, {})
+            test_code = test_code_dict[function_name]
+
+            # Get test code from shared
+            file_path = shared.get(SharedKeys.FILE_PATH, "")
+            suggested_file_path = shared.get(SharedKeys.SUGGESTED_FILE_PATH, "")
+
+            # Regular expression to match only inside require()
+            pattern = (
+                rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
+            )
+            replacement = rf"\1{os.path.abspath(suggested_file_path)}\2"
+
+            # Perform the replacement
+            new_test_code = re.sub(pattern, replacement, test_code)
 
             # Get error prompt
             error_prompt = get_error_prompt(shared, ["revise", function_name])
 
             return TestPromptBuilder.build_revise_prompt(
                 formatted_tests,
-                functions,
-                test_code[function_name],
+                functions[function_name],
+                new_test_code,
                 formatted_failures,
                 error_prompt,
             )
@@ -57,7 +71,6 @@ class ReviseNode(Node):
 
     def exec(self, prompt_input):
         """Revise test cases using LLM"""
-        # print(1111, prompt_input)
         response = call_llm(prompt_input)
         parsed_response = TestResponseParser.parse_yaml_response(response)
         TestResponseParser.validate_revise_response(parsed_response)
@@ -70,7 +83,6 @@ class ReviseNode(Node):
     def post(self, shared, prep_res, response):
         """Process revision results"""
         function_name = self.params["function_name"]
-
         if "error" in response:
             return handle_max_iteration_error(
                 shared, response, BORDER, SYSTEM_MAX_LOOP, ["revise", function_name]
@@ -85,8 +97,17 @@ class ReviseNode(Node):
             return TestActions.ERROR
         elif action == "revise":
             self._print_revisions(response.get("test_cases", {}))
-            TestSharedManager.store_revisions(shared, function_name, response)
-            return TestActions.REVISE
+            TestSharedManager.store_revisions(
+                shared,
+                function_name,
+                response[TestKeys.TEST_CODE],
+                response[TestKeys.FUNCTION_SUGGESTION],
+            )
+            with open(
+                os.path.abspath(shared[SharedKeys.SUGGESTED_FILE_PATH]), "w"
+            ) as f:
+                f.write(shared[SharedKeys.FUNCTIONS][function_name])
+            return TestActions.DEFAULT
         else:
             print(f"❌ Unknown action: {action}")
             return TestActions.ERROR
@@ -95,9 +116,10 @@ class ReviseNode(Node):
         """Print revision details"""
         print("\n=== Test Case Revisions ===")
         for type_name, test_cases_list in test_cases.items():
+            print("\n" + type_name.center(50, "-"))
             for test_case in test_cases_list:
                 print(f"\nTest Case: {test_case['name']}")
                 print(f"Status: {test_case['status']}")
                 print(f"Input: {test_case['input']}")
                 print(f"Expected: {test_case['expected']}")
-            print("\n" + type_name.center(50, "-"))
+        print("\n" + "-" * 50)

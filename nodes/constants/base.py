@@ -17,6 +17,7 @@ class Actions:
 # Shared data keys
 class SharedKeys:
     FILE = "file"
+    FUNCTIONS = "functions"
     FILE_STRUCTURE = "file_structure"
     TOOLS = "tools"
     TOOL_INFO = "tool_info"
@@ -28,4 +29,5 @@ class SharedKeys:
     RESULT = "result"
     QUESTION = "question" 
     FILE_PATH = "file_path" 
+    SUGGESTED_FILE_PATH = "suggested_file_path"
     FILE_DIRECTORY = "file_directory"
