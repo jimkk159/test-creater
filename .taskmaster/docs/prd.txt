@@ -1,0 +1,210 @@
+# Product Requirements Document: Test Code Generator
+
+## Project Overview
+
+**Product Name:** Test Code Generator  
+**Version:** 1.0  
+**Project Type:** AI-Powered Development Tool  
+**Target Users:** Software developers, QA engineers, development teams  
+
+## Problem Statement
+
+Developers spend significant time writing and maintaining test cases for their code. The current manual approach to test generation is:
+- Time-consuming and repetitive
+- Prone to missing edge cases
+- Inconsistent across different developers
+- Difficult to scale across large codebases
+
+## Solution
+
+An intelligent, agentic framework that automatically:
+1. Analyzes existing code to understand functionality
+2. Generates comprehensive test cases using LLMs
+3. Implements test code and validates results
+4. Iteratively improves tests based on execution results
+5. Scales across multiple files and functions in parallel
+
+## Core Features
+
+### 1. Agentic Tool Discovery & Usage
+- **Auto-discovery**: Automatically discovers available tools via MCP server
+- **Smart tool selection**: LLM decides which tools to use based on context
+- **Dynamic parameter generation**: Intelligently determines tool parameters
+
+### 2. Automated Code Analysis
+- **Function extraction**: Automatically identifies functions from source code
+- **Context understanding**: Analyzes function purpose and expected behavior
+- **Dependency mapping**: Understands relationships between functions
+
+### 3. Intelligent Test Generation
+- **LLM-powered**: Uses advanced language models for test case creation
+- **Comprehensive coverage**: Generates tests for normal, edge, and error cases
+- **Multiple test types**: Unit tests, integration tests, performance tests
+
+### 4. Automated Test Implementation
+- **Code generation**: Automatically writes test implementation code
+- **Framework integration**: Supports popular testing frameworks (Jest, pytest, etc.)
+- **Async execution**: Runs tests in parallel for better performance
+
+### 5. Iterative Improvement
+- **Failure analysis**: Analyzes test failures and determines root causes
+- **Automatic revision**: Revises both test code and implementation based on results
+- **Retry mechanism**: Configurable retry logic with exponential backoff
+
+### 6. Scalability & Performance
+- **Batch processing**: Handles multiple files/functions simultaneously
+- **Async/await**: Non-blocking operations for better resource utilization
+- **Parallel execution**: Concurrent test generation and execution
+
+## Technical Architecture
+
+### Core Components
+
+1. **Tool Management Layer**
+   - GetToolsNode: Discovers available tools
+   - DecideToolNode: LLM-based tool selection
+   - ExecuteToolNode: Tool execution with error handling
+
+2. **Analysis Layer**
+   - Code parsing and function extraction
+   - Context analysis and understanding
+   - Dependency mapping
+
+3. **Test Generation Layer**
+   - LLM-powered test case generation
+   - Test implementation code generation
+   - Framework-specific adaptations
+
+4. **Execution Layer**
+   - Async test execution
+   - Result collection and analysis
+   - Failure reporting
+
+5. **Revision Layer**
+   - Failure analysis and categorization
+   - Automatic code/test revision
+   - Retry logic implementation
+
+### Design Patterns
+
+- **Agent Pattern**: LLM-driven decision making for tool selection
+- **Map-Reduce Pattern**: Parallel processing of functions/files
+- **Workflow Pattern**: Sequential processing with conditional branching
+- **Async Pattern**: Non-blocking operations for scalability
+
+## User Stories
+
+### As a Developer
+- I want to automatically generate tests for my existing code so I can improve coverage quickly
+- I want the system to understand my code context so tests are meaningful and relevant
+- I want tests to be automatically revised when they fail so I don't have to debug manually
+- I want to process multiple files at once so I can test entire modules efficiently
+
+### As a QA Engineer
+- I want comprehensive test coverage including edge cases I might miss
+- I want consistent test quality across different developers' code
+- I want automated test maintenance when code changes
+- I want integration with existing CI/CD pipelines
+
+### As a Team Lead
+- I want to enforce consistent testing standards across the team
+- I want to reduce time spent on manual test writing
+- I want visibility into test coverage and quality metrics
+- I want the system to scale with our growing codebase
+
+## Success Metrics
+
+### Performance Metrics
+- **Test generation speed**: < 2 seconds per function on average
+- **Test execution time**: < 5 seconds for typical function test suite
+- **Success rate**: > 90% of generated tests should pass on first run
+- **Coverage improvement**: Increase code coverage by 40-60% on average
+
+### Quality Metrics
+- **Test relevance**: > 95% of generated tests should be meaningful
+- **Edge case detection**: Should identify 80% of common edge cases
+- **False positive rate**: < 5% of tests should be incorrectly failing
+- **Revision success**: > 85% of failed tests should pass after revision
+
+## Implementation Phases
+
+### Phase 1: Core Framework (Weeks 1-2)
+- Implement basic node architecture
+- Set up LLM integration
+- Create tool discovery system
+- Build basic test generation
+
+### Phase 2: Analysis & Generation (Weeks 3-4)
+- Implement code analysis and function extraction
+- Enhance test case generation with edge cases
+- Add test implementation code generation
+- Implement basic execution framework
+
+### Phase 3: Execution & Revision (Weeks 5-6)
+- Build async test execution system
+- Implement failure analysis
+- Add automatic revision capabilities
+- Integrate retry mechanisms
+
+### Phase 4: Scalability & Performance (Weeks 7-8)
+- Implement batch processing
+- Add parallel execution
+- Optimize for large codebases
+- Performance tuning and optimization
+
+### Phase 5: Integration & Polish (Weeks 9-10)
+- CI/CD integration
+- Documentation and examples
+- Error handling improvements
+- User interface enhancements
+
+## Technical Requirements
+
+### Dependencies
+- Python 3.8+
+- LLM API access (OpenAI, Anthropic, etc.)
+- Testing frameworks (pytest, unittest)
+- Async/await support
+- File system access
+
+### Infrastructure
+- Support for multiple LLM providers
+- Configurable retry mechanisms
+- Logging and monitoring
+- Error reporting and diagnostics
+
+### Integration Points
+- MCP server for tool discovery
+- Testing framework integration
+- CI/CD pipeline compatibility
+- IDE plugin potential
+
+## Risk Mitigation
+
+### Technical Risks
+- **LLM API limitations**: Implement fallback mechanisms and rate limiting
+- **Code complexity**: Start with simple functions, gradually increase complexity
+- **Performance bottlenecks**: Implement caching and optimization strategies
+
+### Business Risks
+- **Adoption barriers**: Provide clear documentation and examples
+- **Integration challenges**: Support popular development workflows
+- **Maintenance overhead**: Design for extensibility and modularity
+
+## Future Enhancements
+
+### Short-term (3-6 months)
+- Support for additional programming languages
+- Integration with more testing frameworks
+- Enhanced error reporting and diagnostics
+- Visual test result reporting
+
+### Long-term (6-12 months)
+- Machine learning model for better test prediction
+- Integration with code review systems
+- Automatic performance test generation
+- Test maintenance automation
+
+## Conclusion
+
+The Test Code Generator addresses a critical need in software development by automating the time-consuming process of test creation. By leveraging AI and agentic patterns, it provides intelligent, scalable, and maintainable test generation that improves code quality while reducing developer overhead. 
