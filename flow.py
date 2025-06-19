@@ -8,7 +8,7 @@ from nodes import (
     ImplementFunctionNode,
     AnalyzeNode,
     ReviseNode,
-    FileCoordinatorNode
+    FileCoordinatorNode,
 )
 
 from utils.utils import save_to_file
@@ -43,7 +43,7 @@ def Read_and_find_file_flow():
     execute_node - "tool_result" >> decide_node
 
     # If decide_node returns anything other than "tool" (like default), go to return_default_node
-    
+
     decide_node >> return_default_node
     # This connects the default action of decide_node
 
@@ -55,13 +55,14 @@ def Implement_flow():
     implement_function = ImplementFunctionNode(max_retries=1, wait=0)
     return AsyncFlow(start=implement_function)
 
+
 # --- Flow Creation ---
 def Run_test_flow():
     """Creates and returns the parallel translation flow."""
     copy_file_node = CopyFileNode(
-        dir_path=os.path.join(os.getcwd(), SystemConfig.TEST_DIRECTORY), 
+        dir_path=os.path.join(os.getcwd(), SystemConfig.TEST_DIRECTORY),
         suffix="_suggestion",
-        is_use_function_name=True
+        is_use_function_name=True,
     )
     generate_test_cases = GenerateTestCasesNode(max_retries=1, wait=0)
     implement_flow = Implement_flow()
@@ -74,7 +75,7 @@ def Run_test_flow():
     copy_file_node >> generate_test_cases
     generate_test_cases - "error" >> generate_test_cases
     implement_flow - "error" >> implement_flow
-    revise - 'error' >> revise
+    revise - "error" >> revise
 
     generate_test_cases >> implement_flow
     implement_flow >> run_tests
@@ -91,7 +92,7 @@ class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
         functions = shared.get(SharedKeys.FUNCTIONS, {})
         # Create a list of params for each function
         return [
-            {"function_name": name, "function_content": content}
+            {SharedKeys.FUNCTION_NAME: name, SharedKeys.FUNCTION_CONTENT: content}
             for name, content in functions.items()
         ]
 
@@ -111,14 +112,14 @@ def auto_code_test_generate_flow():
 
     # Create a batch flow for running tests on each function
     function_parallel_batch = FunctionParallelBatchFlow(start=run_test_flow)
-    
-    # Combine test code and suggested file 
+
+    # Combine test code and suggested file
     file_coordinator = FileCoordinatorNode()
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
     analyze_node >> function_parallel_batch
-    function_parallel_batch >> file_coordinator
+    # function_parallel_batch >> file_coordinator
 
     # Create flow starting with test generation
     return AsyncFlow(start=function_parallel_batch)

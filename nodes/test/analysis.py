@@ -19,7 +19,7 @@ class AnalyzeNode(Node):
         error_prompt = get_error_prompt(shared, ['analyze'])
         
         return TestPromptBuilder.build_analyze_prompt(
-            shared[SharedKeys.FILE]["tool_result"], 
+            shared[SharedKeys.FILE][SharedKeys.TOOL_RESULT], 
             error_prompt
         )
 
@@ -40,5 +40,7 @@ class AnalyzeNode(Node):
             )
         
         TestSharedManager.store_functions(shared, functions)
+        TestSharedManager.store_functions_order(shared, functions)
+        print(shared)
         print(SystemConfig.BORDER)
         print(f"⛏️ extracted functions: {list(functions.keys())}") 

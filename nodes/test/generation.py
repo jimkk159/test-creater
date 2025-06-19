@@ -4,7 +4,7 @@ from utils.utils import get_error_prompt, handle_max_iteration_error
 
 from ..shared import TestSharedManager
 from config import SystemConfig, SharedKeys
-from ..formatters.test import TestFormatter, TestPromptBuilder
+from ..formatters.test import TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
 class GenerateTestCasesNode(Node):
@@ -15,8 +15,8 @@ class GenerateTestCasesNode(Node):
         if SharedKeys.FUNCTIONS not in shared or not shared[SharedKeys.FUNCTIONS]:
             raise ValueError("No functions found in shared context")
 
-        function_name = self.params["function_name"]
-        function_content = self.params["function_content"]
+        function_name = self.params[SharedKeys.FUNCTION_NAME]
+        function_content = self.params[SharedKeys.FUNCTION_NAME]
         
         print(f"{SystemConfig.BORDER}\n🧪 Generate {function_name} test cases...")
         
@@ -44,11 +44,11 @@ class GenerateTestCasesNode(Node):
 
     def post(self, shared, prep_res, response):
         """Store generated test cases"""
-        function_name = self.params["function_name"]
+        function_name = self.params[SharedKeys.FUNCTION_NAME]
         
         if "error" in response:
             return handle_max_iteration_error(
                 shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["generateTestCases", function_name]
             )
-        TestSharedManager.store_test_cases(shared, function_name, response["test_cases"])
+        TestSharedManager.store_test_cases(shared, function_name, response[SharedKeys.TEST_CASES])
         # TestFormatter.print_test_cases(response["test_cases"]) 

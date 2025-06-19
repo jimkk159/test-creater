@@ -64,11 +64,11 @@ class TestResponseParser(ResponseParser):
             else:
                 assert isinstance(parsed_response[SharedKeys.FUNCTION_SUGGESTION], str), "function_suggestion must be a string"
         
-        if "test_code" in parsed_response:
-            assert isinstance(parsed_response["test_code"], str), "test_code must be string"
-            assert "describe" in parsed_response["test_code"], "Test code must include describe block"
-            assert "test(" in parsed_response["test_code"], "Test code must include test cases"
-            assert "expect" in parsed_response["test_code"], "Test code must include expect statements"
+        if SharedKeys.TEST_CODE in parsed_response:
+            assert isinstance(parsed_response[SharedKeys.TEST_CODE], str), "test_code must be string"
+            assert "describe" in parsed_response[SharedKeys.TEST_CODE], "Test code must include describe block"
+            assert "test(" in parsed_response[SharedKeys.TEST_CODE], "Test code must include test cases"
+            assert "expect" in parsed_response[SharedKeys.TEST_CODE], "Test code must include expect statements"
 
     @staticmethod
     def parse_functions_from_response(response):
@@ -77,7 +77,7 @@ class TestResponseParser(ResponseParser):
         
         # Convert list of functions to dictionary
         functions_dict = {}
-        for func in parsed.get("functions", []):
+        for func in parsed.get(SharedKeys.FUNCTIONS, []):
             for func_name, func_content in func.items():
                 functions_dict[func_name] = func_content
         

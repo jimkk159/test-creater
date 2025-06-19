@@ -18,6 +18,11 @@ class TestSharedManager(BaseSharedManager):
     def store_functions(shared, functions):
         """Store extracted functions"""
         BaseSharedManager.store_value(shared, [SharedKeys.FUNCTIONS], functions)
+        
+    @staticmethod
+    def store_functions_order(shared, functions):
+        """Store extracted functions order"""
+        BaseSharedManager.store_value(shared, [SharedKeys.FUNCTIONS_ORDER], list(functions.keys()))
 
     @staticmethod
     def store_test_cases(shared, function_name, test_cases):
