@@ -27,7 +27,6 @@ class ReviseNode(Node):
             formatted_tests += TestFormatter.format_test_cases(
                 test_cases[function_name]["init"]
             )
-
             # Format failed tests for prompt
             formatted_failures = TestFormatter.format_failed_tests(
                 failed_tests[function_name]
@@ -44,9 +43,7 @@ class ReviseNode(Node):
             suggested_file_path = shared.get(SharedKeys.SUGGESTED_FILE_PATH, "")
 
             # Regular expression to match only inside require()
-            pattern = (
-                rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
-            )
+            pattern = rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
             replacement = rf"\1{os.path.abspath(suggested_file_path[function_name])}\2"
 
             # Perform the replacement
@@ -117,8 +114,8 @@ class ReviseNode(Node):
         """Print revision details"""
         print("\n=== Test Case Revisions ===")
         # for type_name, test_cases_list in test_cases.items():
-        print("\n" + 'retry'.center(50, "-"))
-        for test_case in test_cases['retry']:
+        print("\n" + "retry".center(50, "-"))
+        for test_case in test_cases["retry"]:
             print(f"\nTest Case: {test_case['name']}")
             print(f"Status: {test_case['status']}")
             print(f"Input: {test_case['input']}")

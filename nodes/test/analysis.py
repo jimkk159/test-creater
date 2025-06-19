@@ -41,6 +41,5 @@ class AnalyzeNode(Node):
         
         TestSharedManager.store_functions(shared, functions)
         TestSharedManager.store_functions_order(shared, functions)
-        print(shared)
         print(SystemConfig.BORDER)
         print(f"⛏️ extracted functions: {list(functions.keys())}") 

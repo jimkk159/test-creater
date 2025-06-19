@@ -54,13 +54,12 @@ class BaseSharedManager:
             value_dict: Dictionary to store
         """
         current = shared
-        
         # Navigate through all keys except the last one
         for key in keys[:-1]:
             if key not in current:
                 current[key] = {}
             current = current[key]
-            
+    
         # Initialize or update the dictionary at the final key
         if keys[-1] not in current:
             current[keys[-1]] = {}

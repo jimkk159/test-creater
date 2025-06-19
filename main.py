@@ -23,7 +23,6 @@ read_and_find_file_shared = {
         "file_content": "function add(a, b) {\n    return a + b;\n}\n\nfunction sub(a, b) {\n    return a - b;\n}\n\nmodule.exports = { add, sub };\n\n"
     },
     "functions": {
-        "add": "function add(a, b) {\n    return a + b;\n}\n",
         "sub": "function sub(a, b) {\n    return a - b;\n}",
     },
     "suggested_file_path": {
@@ -162,7 +161,7 @@ read_and_find_file_shared = {
                 "expected": None,
                 "description": "sub › Input type check - String instead of number\nexpect(received).toThrow()\n\n    Received function did not throw\n\n      27 |\n      28 |     test('Input type check - String instead of number', () => {\n    > 29 |         expect(() => sub(\"10\", 5)).toThrow();\n         |                                    ^\n      30 |     });\n      31 |\n      32 |     test('Input type check - Boolean input', () => {\n\n      at Object.toThrow (test/temp_jest_62ia63bj.test.js:29:36)",
             }
-        ]
+        ],
     },
 }
 
@@ -180,7 +179,7 @@ async def main():
 
     # Create and run the flow
     flow = auto_code_test_generate_flow()
-    await flow.run_async(read_and_find_file_shared)
+    await flow.run_async(shared)
 
 
 if __name__ == "__main__":

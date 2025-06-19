@@ -81,9 +81,9 @@ def Run_test_flow():
     implement_flow >> run_tests
     run_tests - "failure" >> revise
     run_tests >> return_default_node
-    # revise >> run_tests
+    revise >> run_tests
 
-    return AsyncFlow(start=revise)
+    return AsyncFlow(start=copy_file_node)
 
 
 class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
@@ -122,4 +122,4 @@ def auto_code_test_generate_flow():
     # function_parallel_batch >> file_coordinator
 
     # Create flow starting with test generation
-    return AsyncFlow(start=function_parallel_batch)
+    return AsyncFlow(start=read_and_find_file_flow)

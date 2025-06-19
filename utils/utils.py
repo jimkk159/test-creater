@@ -272,8 +272,8 @@ def handle_max_iteration_error(shared, exec_res, border, max_loop, keys=[], retu
     if return_key not in shared:
         shared[return_key] = {}
 
+    print("🔁 Max retries reached or error in exec. Returning 'error' action.")
     print(exec_res)
-    print("🔁 Max retries reached or error in exec. Returning 'error' action.", exec_res[return_key])
     set_nested_value(shared[return_key], keys, value=exec_res[return_key])
     return return_key
 
