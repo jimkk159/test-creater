@@ -79,7 +79,7 @@ class TestCoordinatorNode(AsyncNode):
         git_hash = get_git_hash()
         
         # Create test filename pattern: _20250621_7bf60e3.myMath_copy.test.js
-        test_filename = f"_{timestamp}_{git_hash}.{filename_without_ext}_copy.test.js"
+        test_filename = f"_{timestamp}_{git_hash}.{filename_without_ext}.test.js"
         test_file_path = os.path.join(SystemConfig.TEST_DIRECTORY, test_filename)
         
         # Ensure test directory exists
@@ -120,6 +120,7 @@ class DeleteTempFileNode(AsyncNode):
         for file_path in file_paths.values():
             try:
                 os.remove(file_path)
+                print(SystemConfig.BORDER_2)
                 print(f"   ✅ Deleted: {file_path}")
             except FileNotFoundError:
                 print(f"   ⚠️  File not found: {file_path}")

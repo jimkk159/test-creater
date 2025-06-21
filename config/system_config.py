@@ -10,6 +10,7 @@ class SystemConfig:
     BORDER_LEN = 96
     SYSTEM_MAX_LOOP = 2
     BORDER = f"{'=' * BORDER_LEN}"
+    BORDER_2 = f"{'-' * BORDER_LEN}"
 
     # Test configuration
     MAX_ITERATION = 3

@@ -54,7 +54,7 @@ def Read_and_find_file_flow():
 
 
 def Implement_flow():
-    implement_function = ImplementFunctionNode(max_retries=1, wait=0)
+    implement_function = ImplementFunctionNode(max_retries=2, wait=0)
     return AsyncFlow(start=implement_function)
 
 
@@ -66,11 +66,11 @@ def Run_test_flow():
         suffix="_suggestion",
         is_use_function_name=True,
     )
-    generate_test_cases = GenerateTestCasesNode(max_retries=1, wait=0)
+    generate_test_cases = GenerateTestCasesNode(max_retries=2, wait=0)
     implement_flow = Implement_flow()
 
     run_tests = RunTestsNode()
-    revise = ReviseNode(max_retries=1, wait=2)
+    revise = ReviseNode(max_retries=3, wait=2)
     return_default_node = ReturnDefaultActionNode()
 
     # Error handling

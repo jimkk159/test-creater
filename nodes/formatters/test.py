@@ -54,6 +54,40 @@ class TestFormatter:
         print(title)
 
     @staticmethod
+    def _format_individual_failure(detail, failure_num, border_len):
+        """Format a single test failure for display"""
+        print(f"\n📋 Failure #{failure_num}")
+        print(f"   Suite:     {detail.get('suite', 'Unknown')}")
+        print(f"   Test:      {detail.get('test_case', 'Unknown')}")
+        print(f"   Status:    {'❌ FAILED' if not detail.get('passed', True) else '✅ PASSED'}")
+        
+        # Extract the core error message from description
+        description = detail.get('description', '')
+        if 'Expected substring:' in description and 'Received function did not throw' in description:
+            expected_match = re.search(r'Expected substring: "([^"]+)"', description)
+            expected = expected_match.group(1) if expected_match else 'Unknown error'
+            print(f"   Issue:     Function should throw error: '{expected}'")
+            print(f"   Problem:   Function executed without throwing")
+        elif 'expect(received).toBe(expected)' in description:
+            print(f"   Issue:     Value assertion failed")
+            if detail.get('expected') is not None:
+                print(f"   Expected:  {detail['expected']}")
+            if detail.get('received') is not None:
+                print(f"   Received:  {detail['received']}")
+        elif 'toThrowError' in description:
+            print(f"   Issue:     Expected function to throw an error")
+            print(f"   Problem:   Function completed without throwing")
+        else:
+            # Fallback for other error types
+            print(f"   Issue:     Test assertion failed")
+            if detail.get('expected') is not None:
+                print(f"   Expected:  {detail['expected']}")
+            if detail.get('received') is not None:
+                print(f"   Received:  {detail['received']}")
+        
+        print(f"   {'─' * (border_len - 3)}")
+
+    @staticmethod
     def print_failed_test_details(failed_details, border_len=SystemConfig.BORDER_LEN):
         """Pretty print failed test details in a readable format"""
         if not failed_details:
@@ -64,36 +98,7 @@ class TestFormatter:
         print("=" * border_len)
         
         for i, detail in enumerate(failed_details, 1):
-            print(f"\n📋 Failure #{i}")
-            print(f"   Suite:     {detail.get('suite', 'Unknown')}")
-            print(f"   Test:      {detail.get('test_case', 'Unknown')}")
-            print(f"   Status:    {'❌ FAILED' if not detail.get('passed', True) else '✅ PASSED'}")
-            
-            # Extract the core error message from description
-            description = detail.get('description', '')
-            if 'Expected substring:' in description and 'Received function did not throw' in description:
-                expected_match = re.search(r'Expected substring: "([^"]+)"', description)
-                expected = expected_match.group(1) if expected_match else 'Unknown error'
-                print(f"   Issue:     Function should throw error: '{expected}'")
-                print(f"   Problem:   Function executed without throwing")
-            elif 'expect(received).toBe(expected)' in description:
-                print(f"   Issue:     Value assertion failed")
-                if detail.get('expected') is not None:
-                    print(f"   Expected:  {detail['expected']}")
-                if detail.get('received') is not None:
-                    print(f"   Received:  {detail['received']}")
-            elif 'toThrowError' in description:
-                print(f"   Issue:     Expected function to throw an error")
-                print(f"   Problem:   Function completed without throwing")
-            else:
-                # Fallback for other error types
-                print(f"   Issue:     Test assertion failed")
-                if detail.get('expected') is not None:
-                    print(f"   Expected:  {detail['expected']}")
-                if detail.get('received') is not None:
-                    print(f"   Received:  {detail['received']}")
-            
-            print(f"   {'─' * (border_len - 3)}")
+            TestFormatter._format_individual_failure(detail, i, border_len)
         
         print("\n" + "=" * border_len)
 

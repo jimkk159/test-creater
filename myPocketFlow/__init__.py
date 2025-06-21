@@ -88,10 +88,38 @@ class AsyncBatchNode(AsyncNode,BatchNode):
 class AsyncParallelBatchNode(AsyncNode,BatchNode):
     async def _exec(self,items): return await asyncio.gather(*(super(AsyncParallelBatchNode,self)._exec(i) for i in items))
 
+class _AsyncNodeWrapper(AsyncNode):
+    def __init__(self, sync_node):
+        super().__init__(max_retries=sync_node.max_retries, wait=sync_node.wait)
+        self.sync_node = sync_node
+
+    async def prep_async(self, shared):
+        self.sync_node.params = self.params
+        return await asyncio.to_thread(self.sync_node.prep, shared)
+
+    async def exec_async(self, prep_res):
+        return await asyncio.to_thread(self.sync_node.exec, prep_res)
+
+    async def post_async(self, shared, prep_res, exec_res):
+        self.sync_node.params = self.params
+        return await asyncio.to_thread(self.sync_node.post, shared, prep_res, exec_res)
+
+    async def exec_fallback_async(self, prep_res, exc): 
+        return await asyncio.to_thread(self.sync_node.exec_fallback, prep_res, exc)
+
 class AsyncFlow(Flow,AsyncNode):
     async def _orch_async(self,shared,params=None):
         curr,p,last_action =copy.deepcopy(self.start_node),(params or {**self.params}),None
-        while curr: curr.set_params(p); last_action=await curr._run_async(shared) if isinstance(curr,AsyncNode) else curr._run(shared); curr=copy.deepcopy(self.get_next_node(curr,last_action))
+        while curr: 
+            curr.set_params(p)
+            if isinstance(curr,AsyncNode): 
+                last_action=await curr._run_async(shared)
+            else:
+                # Auto-wrap sync node
+                wrapped = _AsyncNodeWrapper(curr)
+                wrapped.set_params(p)
+                last_action=await wrapped._run_async(shared)
+            curr=copy.deepcopy(self.get_next_node(curr,last_action))
         return last_action
     async def _run_async(self,shared): p=await self.prep_async(shared); o=await self._orch_async(shared); return await self.post_async(shared,p,o)
     async def post_async(self,shared,prep_res,exec_res): return exec_res

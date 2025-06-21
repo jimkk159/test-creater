@@ -16,8 +16,8 @@ class ReviseNode(Node):
     def prep(self, shared):
         """Prepare revision prompt"""
         print(SystemConfig.BORDER)
-        print("💭 AI review the test result...")
         function_name = self.params["function_name"]
+        print(f"💭 AI review the test result for {function_name}...")
         TestSharedManager.increment_iteration_count(shared, function_name)
         test_cases = shared.get(SharedKeys.TEST_CASES, {})
         failed_tests = shared.get(SharedKeys.FAILED_TESTS, {})
