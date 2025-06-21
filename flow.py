@@ -129,7 +129,7 @@ def auto_code_test_generate_flow():
     file_coordinator = FileCoordinatorFlow()
 
     # Connect nodes
-    # read_and_find_file_flow >> analyze_node
+    read_and_find_file_flow >> analyze_node
     analyze_node >> function_parallel_batch
     function_parallel_batch >> file_coordinator
 

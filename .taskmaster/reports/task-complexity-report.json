@@ -1,0 +1,29 @@
+{
+	"meta": {
+		"generatedAt": "2025-06-21T13:52:41.699Z",
+		"tasksAnalyzed": 2,
+		"totalTasks": 15,
+		"analysisCount": 2,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 14,
+			"taskTitle": "Optimize for Large Codebases",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down the codebase optimization task into subtasks covering: 1) Memory profiling and analysis 2) Caching implementation 3) Performance benchmarking 4) Resource usage optimization 5) Documentation and testing",
+			"reasoning": "High complexity due to performance optimization requiring deep technical knowledge, careful analysis, and potential architectural changes. Multiple optimization strategies need to be researched, implemented and tested."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "CI/CD Integration",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down CI/CD integration into subtasks covering: 1) Pipeline configuration 2) Test automation setup 3) Integration with existing workflows 4) Documentation and monitoring",
+			"reasoning": "Moderate to high complexity due to need for understanding multiple CI/CD tools, configuring automation, and ensuring compatibility with existing systems while maintaining reliability."
+		}
+	]
+}
