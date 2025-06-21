@@ -30,9 +30,6 @@ class FunctionCoordinatorNode(AsyncNode):
         return parsed_response
     
     async def post_async(self, shared, prep_res, exec_res):
-        print(SystemConfig.BORDER)
-        print("🖨️  Combing results...")
-        
         # Get copy file path using helper function
         original_file_path = shared[SharedKeys.FILE_PATH]
         copy_file_path = create_copy_file_path(original_file_path)
@@ -68,8 +65,6 @@ class TestCoordinatorNode(AsyncNode):
         return parsed_response
     
     async def post_async(self, shared, prep_res, exec_res):
-        print("🖨️Combing test results...")
-        
         # Get original file path and extract info
         original_filename = os.path.basename(shared[SharedKeys.FILE_PATH])
         filename_without_ext = os.path.splitext(original_filename)[0]
@@ -121,7 +116,7 @@ class DeleteTempFileNode(AsyncNode):
             try:
                 os.remove(file_path)
                 print(SystemConfig.BORDER_2)
-                print(f"   ✅ Deleted: {file_path}")
+                print(f"   🗑️ Deleted: {file_path}")
             except FileNotFoundError:
                 print(f"   ⚠️  File not found: {file_path}")
             except Exception as e:

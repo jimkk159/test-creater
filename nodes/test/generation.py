@@ -45,7 +45,7 @@ class GenerateTestCasesNode(Node):
     def post(self, shared, prep_res, response):
         """Store generated test cases"""
         function_name = self.params[SharedKeys.FUNCTION_NAME]
-        if "error" in response:
+        if isinstance(response, dict) and "error" in response:
             return handle_max_iteration_error(
                 shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["generateTestCases", function_name]
             )

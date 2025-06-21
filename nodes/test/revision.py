@@ -78,7 +78,7 @@ class ReviseNode(Node):
     def post(self, shared, prep_res, response):
         """Process revision results"""
         function_name = self.params["function_name"]
-        if "error" in response:
+        if isinstance(response, dict) and "error" in response:
             return handle_max_iteration_error(
                 shared,
                 response,
@@ -95,7 +95,7 @@ class ReviseNode(Node):
             print("❌ Error occurred during revision")
             return TestActions.ERROR
         elif action == "revise":
-            self._print_revisions(response.get("test_cases", {}))
+            # self._print_revisions(response.get("test_cases", {}))
             TestSharedManager.store_revisions(
                 shared,
                 function_name,
@@ -112,12 +112,13 @@ class ReviseNode(Node):
 
     def _print_revisions(self, test_cases):
         """Print revision details"""
-        print("\n=== Test Case Revisions ===")
+        function_name = self.params["function_name"]
+        print(f"=== Test Case Revisions for {function_name} ===")
         # for type_name, test_cases_list in test_cases.items():
-        print("\n" + "retry".center(50, "-"))
-        for test_case in test_cases["retry"]:
-            print(f"\nTest Case: {test_case['name']}")
-            print(f"Status: {test_case['status']}")
-            print(f"Input: {test_case['input']}")
-            print(f"Expected: {test_case['expected']}")
-        print("\n" + "-" * 50)
+        # print("\n" + "retry".center(50, "-"))
+        # for test_case in test_cases["retry"]:
+        #     print(f"\nTest Case: {test_case['name']}")
+        #     print(f"Status: {test_case['status']}")
+        #     print(f"Input: {test_case['input']}")
+        #     print(f"Expected: {test_case['expected']}")
+        # print("\n" + "-" * 50)

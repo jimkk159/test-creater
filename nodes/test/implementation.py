@@ -42,9 +42,9 @@ class ImplementFunctionNode(Node):
 
     def post(self, shared, prep_res, test_code):
         """Store implemented test code"""
-        function_name = self.params["function_name"]
-        
-        if "error" in test_code:
+        function_name = self.params.get("function_name", "unknown")        
+        if isinstance(test_code, dict) and "error" in test_code:
+            print(f"    Error detected for {function_name}")
             return handle_max_iteration_error(
                 shared, test_code, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["implement", function_name]
             )

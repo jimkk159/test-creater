@@ -81,6 +81,11 @@ class RunTestsNode(AsyncParallelBatchNode):
                 
                 if "detail" in batch_result:
                     all_failed_details.extend(batch_result["detail"])
+                    
+        if(total_tests == 0):
+            print(exec_res_list)
+            print(f"🔴 No tests found for {function_name}")
+            return TestActions.FAILURE
 
         TestFormatter.print_test_results(function_name, passed_tests, total_tests)
 
@@ -92,7 +97,9 @@ class RunTestsNode(AsyncParallelBatchNode):
         )
         if TestSharedManager.check_max_iterations_reached(shared, function_name):
             print("Max iterations reached for one or more test suites.")
-            return TestActions.MAX_ITERATIONS
+            pprint.pprint(exec_res_list)
+            raise Exception("Max iterations reached for one or more test suites.")
+            # return TestActions.MAX_ITERATIONS
         else:
             print(f"❌Some tests failed. Revising code...")
             TestFormatter.print_failed_test_details(exec_res_list[0]["detail"])

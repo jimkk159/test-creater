@@ -1,6 +1,7 @@
 import io
 import re
 import sys
+import pprint
 import traceback
 from contextlib import redirect_stdout, redirect_stderr
 import os
@@ -196,7 +197,7 @@ async def execute_jest_test(test_code, code_path = TEST_DIRECTORY):
         except FileNotFoundError:
             return "Error: Jest or npx command not found..."
         except Exception as e:
-            print(e)
+            pprint.pprint(e)
             return f"An unexpected error occurred: {e}"
         finally:
             if os.path.exists(file_path):

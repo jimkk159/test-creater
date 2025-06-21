@@ -70,7 +70,7 @@ def Run_test_flow():
     implement_flow = Implement_flow()
 
     run_tests = RunTestsNode()
-    revise = ReviseNode(max_retries=3, wait=2)
+    revise = ReviseNode(max_retries=5, wait=2)
     return_default_node = ReturnDefaultActionNode()
 
     # Error handling
@@ -129,7 +129,7 @@ def auto_code_test_generate_flow():
     file_coordinator = FileCoordinatorFlow()
 
     # Connect nodes
-    read_and_find_file_flow >> analyze_node
+    # read_and_find_file_flow >> analyze_node
     analyze_node >> function_parallel_batch
     function_parallel_batch >> file_coordinator
 

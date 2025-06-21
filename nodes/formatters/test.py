@@ -41,13 +41,13 @@ class TestFormatter:
                 print(f"   explain: {test_case['explain']}")
                 print(f"   input: {test_case['input']}")
                 print(f"   expected: {test_case['expected']}")
-        print("-" * border_len)
+        print(SystemConfig.BORDER)
         print("")
 
     @staticmethod
     def print_test_results(function_name, passed, total, border_len=SystemConfig.BORDER_LEN):
         """Print test results summary"""
-        print("-" * border_len)
+        print(SystemConfig.BORDER)
         title = (
             f"--- Aggregate {function_name} Test Results: {passed}/{total} Passed ---"
         )
@@ -93,15 +93,13 @@ class TestFormatter:
         if not failed_details:
             return
             
-        print("\n" + "=" * border_len)
-        print("🔴 FAILED TEST DETAILS")
-        print("=" * border_len)
+        # print("\n" + "=" * border_len)
+        # print("🔴 FAILED TEST DETAILS")
+        # print("=" * border_len)
         
-        for i, detail in enumerate(failed_details, 1):
-            TestFormatter._format_individual_failure(detail, i, border_len)
+        # for i, detail in enumerate(failed_details, 1):
+        #     TestFormatter._format_individual_failure(detail, i, border_len)
         
-        print("\n" + "=" * border_len)
-
 
 class TestPromptBuilder:
     @staticmethod

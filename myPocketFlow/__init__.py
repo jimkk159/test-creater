@@ -79,7 +79,16 @@ class AsyncNode(Node):
     async def run_async(self,shared): 
         if self.successors: warnings.warn("Node won't run successors. Use AsyncFlow.")  
         return await self._run_async(shared)
-    async def _run_async(self,shared): p=await self.prep_async(shared); e=await self._exec(p); return await self.post_async(shared,p,e)
+    async def _run_async(self,shared): 
+        try:
+            p=await self.prep_async(shared)
+            e=await self._exec(p)
+            return await self.post_async(shared,p,e)
+        except Exception as ex:
+            node_name = self.__class__.__name__
+            if hasattr(self, 'sync_node'):
+                node_name = self.sync_node.__class__.__name__
+            raise RuntimeError(f"Error in {node_name}: {str(ex)}") from ex
     def _run(self,shared): raise RuntimeError("Use run_async.")
 
 class AsyncBatchNode(AsyncNode,BatchNode):
@@ -112,13 +121,19 @@ class AsyncFlow(Flow,AsyncNode):
         curr,p,last_action =copy.deepcopy(self.start_node),(params or {**self.params}),None
         while curr: 
             curr.set_params(p)
-            if isinstance(curr,AsyncNode): 
-                last_action=await curr._run_async(shared)
-            else:
-                # Auto-wrap sync node
-                wrapped = _AsyncNodeWrapper(curr)
-                wrapped.set_params(p)
-                last_action=await wrapped._run_async(shared)
+            try:
+                if isinstance(curr,AsyncNode): 
+                    last_action=await curr._run_async(shared)
+                else:
+                    # Auto-wrap sync node
+                    wrapped = _AsyncNodeWrapper(curr)
+                    wrapped.set_params(p)
+                    last_action=await wrapped._run_async(shared)
+            except Exception as ex:
+                flow_name = self.__class__.__name__
+                curr_name = curr.__class__.__name__
+                params_info = f"params={self.params}" if self.params else ""
+                raise RuntimeError(f"Error in {flow_name} -> {curr_name} {params_info}: {str(ex)}") from ex
             curr=copy.deepcopy(self.get_next_node(curr,last_action))
         return last_action
     async def _run_async(self,shared): p=await self.prep_async(shared); o=await self._orch_async(shared); return await self.post_async(shared,p,o)

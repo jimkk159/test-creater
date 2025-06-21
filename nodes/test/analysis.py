@@ -32,14 +32,14 @@ class AnalyzeNode(Node):
         """Handle parsing errors"""
         return {"error": exc}
 
-    def post(self, shared, prep_res, functions):
+    def post(self, shared, prep_res, response):
         """Store extracted functions"""
-        if "error" in functions:
+        if isinstance(response, dict) and "error" in response:
             return handle_max_iteration_error(
-                shared, functions, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["analyze"]
+                shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["analyze"]
             )
         
-        TestSharedManager.store_functions(shared, functions)
-        TestSharedManager.store_functions_order(shared, functions)
+        TestSharedManager.store_functions(shared, response)
+        TestSharedManager.store_functions_order(shared, response)
         print(SystemConfig.BORDER)
-        print(f"⛏️ extracted functions: {list(functions.keys())}") 
+        print(f"⛏️ extracted functions: {list(response.keys())}") 

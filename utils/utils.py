@@ -1,5 +1,6 @@
 import re
 import os
+import pprint
 import shutil
 import asyncio
 import subprocess
@@ -273,9 +274,28 @@ def handle_max_iteration_error(shared, exec_res, border, max_loop, keys=[], retu
         shared[return_key] = {}
 
     print("🔁 Max retries reached or error in exec. Returning 'error' action.")
-    print(exec_res)
-    set_nested_value(shared[return_key], keys, value=exec_res[return_key])
+    print(f"exec_res type: {type(exec_res)}, value: ")
+    pprint.pprint(exec_res)
+    
+    # Handle case where exec_res might be a string or dict
+    if isinstance(exec_res, dict) and return_key in exec_res:
+        set_nested_value(shared[return_key], keys, value=exec_res[return_key])
+    else:
+        # If exec_res is not a dict or doesn't have return_key, store the whole thing
+        set_nested_value(shared[return_key], keys, value=exec_res)
     return return_key
+
+def debug_node_context(node_name, params=None, shared_keys=None, exec_result=None):
+    """Helper function to debug what's happening in nodes"""
+    print(f"🐛 DEBUG {node_name}:")
+    if params:
+        print(f"   params: {params}")
+    if shared_keys:
+        print(f"   shared keys: {list(shared_keys.keys()) if isinstance(shared_keys, dict) else shared_keys}")
+    if exec_result is not None:
+        print(f"   exec_result type: {type(exec_result)}")
+        print(f"   exec_result: {exec_result}")
+    print("---")
 
 if __name__ == "__main__":
     asyncio.run(main())
