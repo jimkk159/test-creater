@@ -1,6 +1,13 @@
 import sys
 import asyncio
+import logging
 from flow import auto_code_test_generate_flow
+
+# Configure logging to see debug messages
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 BORDER_LEN = 96
 border = f"{"=" * BORDER_LEN}"

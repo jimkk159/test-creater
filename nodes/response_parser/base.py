@@ -1,14 +1,31 @@
 import yaml
 from typing import Dict, Any
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 class ResponseParser:
     @staticmethod
     def parse_yaml_response(response: str) -> Dict[str, Any]:
         """Parse YAML response from LLM and extract the YAML content"""
+        logger.debug("=== FULL LLM RESPONSE ===")
+        logger.debug(response)
+        logger.debug("=== END RESPONSE ===")
+        
         try:
             yaml_str = response.split("```yaml")[1].split("```")[0].strip()
+            
+            logger.debug("=== EXTRACTED YAML ===")
+            logger.debug(f"YAML string: {repr(yaml_str)}")
+            logger.debug("=== END YAML ===")
+            
             return yaml.safe_load(yaml_str)
         except (IndexError, yaml.YAMLError) as e:
+            logger.error("=== YAML PARSING ERROR ===")
+            logger.error(f"Error: {e}")
+            logger.error(f"YAML content that failed: {repr(yaml_str) if 'yaml_str' in locals() else 'No YAML extracted'}")
+            logger.error("=== END ERROR ===")
             raise ValueError(f"Failed to parse YAML response: {e}")
 
     @staticmethod
