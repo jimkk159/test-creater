@@ -61,16 +61,26 @@ Your action choice: [suggest, done, error]
 
 ### OUTPUT FORMAT
 
+You MUST respond with ONLY valid YAML inside code fences. Do NOT include any explanatory text outside the YAML block.
+
 ```yaml
-action: <name of the action>
+action: suggest
 thinking: |
-    <your step-by-step reasoning the test cases>
-reason: <why you chose this action>
-suggestion: | # if you want to suggest any test cases.
-    name: <test case name>
-    reason: <the reason why you want to test this case or you want to modify this case>
-    input: {{param1: value1, param2: value2}}
-    expected: result
-    ...
+  The current test cases don't cover edge cases like negative numbers.
+  I should suggest adding a test for negative inputs.
+reason: Need to test negative number handling
+suggestion: |
+  name: test_negative_numbers
+  reason: Original tests only cover positive numbers, need negative case
+  input: {{ a: -5, b: 3 }}
+  expected: -2
 ```
+
+IMPORTANT: 
+- Start your response directly with ```yaml
+- End with ```
+- Do NOT add any text before or after the YAML block
+- Use proper YAML formatting with colons and indentation
+- For multi-line values, use the | operator
+- For input parameters, use JSON object format: {{ param_name: value, param_name2: value2 }}
 """
