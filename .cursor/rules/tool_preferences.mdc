@@ -1,0 +1,53 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Tool Selection Guidelines
+
+**Use Cursor native tools when available for file operations instead of MCP tools**
+
+- **File Reading:**
+  - ✅ DO: Use `read_file` (Cursor native)
+  - ❌ DON'T: Use `mcp_desktop-commander_read_file` when Cursor's `read_file` can handle the task
+
+- **File Writing/Editing:**
+  - ✅ DO: Use `edit_file` or `search_replace` (Cursor native) 
+  - ❌ DON'T: Use `mcp_desktop-commander_write_file` or `mcp_desktop-commander_edit_block` when Cursor tools can handle it
+
+- **Directory Operations:**
+  - ✅ DO: Use `list_dir` (Cursor native)
+  - ❌ DON'T: Use `mcp_desktop-commander_list_directory` when Cursor's `list_dir` works
+
+- **Code Search:**
+  - ✅ DO: Use `codebase_search` or `grep_search` (Cursor native)
+  - ❌ DON'T: Use `mcp_desktop-commander_search_code` when Cursor tools are sufficient
+
+## When to Use MCP Tools
+
+**Only use MCP tools when Cursor native tools cannot handle the specific requirement:**
+
+- **Complex file operations** that require special handling
+- **System-level operations** beyond Cursor's scope
+- **Bulk operations** that Cursor tools don't support efficiently
+- **Terminal commands** that require `mcp_desktop-commander_execute_command`
+
+## Examples
+
+```python
+# ✅ DO: Use Cursor native tools
+read_file("path/to/file.py")
+edit_file("path/to/file.py", "Add new function")
+list_dir("src/")
+
+# ❌ DON'T: Use MCP when Cursor works
+mcp_desktop-commander_read_file({"path": "path/to/file.py"})
+mcp_desktop-commander_write_file({"path": "path/to/file.py", "content": "..."})
+```
+
+## Rationale
+
+- **Performance**: Cursor native tools are typically faster
+- **Integration**: Better integration with Cursor's workspace context
+- **Reliability**: Fewer layers of abstraction reduce potential failure points
+- **Consistency**: Maintains consistent tool usage patterns across the codebase

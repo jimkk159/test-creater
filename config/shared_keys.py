@@ -22,6 +22,7 @@ class SharedKeys:
     TEST_CASES = "test_cases"
     TEST_CODE = "test_code"
     FUNCTION_SUGGESTION = "function_suggestion"
+    COMBINED_FUNCTION = "combined_function"
     
     # Analysis and processing keys
     ANALYZE = "analyze"

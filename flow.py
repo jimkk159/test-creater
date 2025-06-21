@@ -8,7 +8,9 @@ from nodes import (
     ImplementFunctionNode,
     AnalyzeNode,
     ReviseNode,
-    FileCoordinatorNode,
+    TestCoordinatorNode,
+    FunctionCoordinatorNode,
+    DeleteTempFileNode,
 )
 
 from utils.utils import save_to_file
@@ -99,6 +101,17 @@ class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
     async def post_async(self, shared, prep_res, exec_res):
         # Save the test code to a file
         print("🎉All tests passed across all batches!")
+        
+def FileCoordinatorFlow():
+    # Combine test code and suggested file
+    test_coordinator = TestCoordinatorNode()
+    function_coordinator = FunctionCoordinatorNode()
+    delete_temp_file = DeleteTempFileNode()
+
+    function_coordinator >> test_coordinator
+    test_coordinator >> delete_temp_file
+    
+    return AsyncFlow(start=function_coordinator)
 
 
 def auto_code_test_generate_flow():
@@ -113,13 +126,12 @@ def auto_code_test_generate_flow():
     # Create a batch flow for running tests on each function
     function_parallel_batch = FunctionParallelBatchFlow(start=run_test_flow)
 
-    # Combine test code and suggested file
-    file_coordinator = FileCoordinatorNode()
+    file_coordinator = FileCoordinatorFlow()
 
     # Connect nodes
     read_and_find_file_flow >> analyze_node
     analyze_node >> function_parallel_batch
-    # function_parallel_batch >> file_coordinator
+    function_parallel_batch >> file_coordinator
 
     # Create flow starting with test generation
     return AsyncFlow(start=read_and_find_file_flow)

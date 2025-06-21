@@ -3,7 +3,7 @@ from .generation import GenerateTestCasesNode
 from .implementation import ImplementFunctionNode
 from .execution import RunTestsNode
 from .revision import ReviseNode
-from .fileCoordinator import FileCoordinatorNode
+from .fileCoordinator import *
 
 __all__ = [
     'AnalyzeNode',
@@ -11,5 +11,7 @@ __all__ = [
     'ImplementFunctionNode',
     'RunTestsNode',
     'ReviseNode',
-    'FileCoordinatorNode'
+    'TestCoordinatorNode',
+    'FunctionCoordinatorNode',
+    'DeleteTempFileNode',
 ] 

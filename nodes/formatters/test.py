@@ -195,6 +195,7 @@ test_cases:
     @staticmethod
     def build_implement_prompt(file_path, functions, formatted_tests, error_prompt=""):
         """Build prompt for implementing test functions"""
+
         example = """
     <import-file-path> // use exports-loader
 
@@ -345,12 +346,141 @@ test_code: |
     }});
 """
     @staticmethod
-    def build_file_coordinator_prompt(test_codes, suggested_file_paths):
-        print(111, test_codes,)
-        print(222, suggested_file_paths)
+    def build_file_coordinator_function_prompt(functions_order, functions, file_path, suggested_file_paths):        
+        function_str = ""
+        for function_name in functions_order:
+            function_str += f"""
+{function_name}:
+{functions[function_name]}
+
+"""
+            
+        suggested_file_paths_str = ""
+        for function_name in functions_order:
+            suggested_file_paths_str += f"""
+                - {function_name}: {os.path.abspath(suggested_file_paths[function_name])}
+            """
+
+        return f"""You are a QA engineer responsible for combining multiple standalone functions into a single coordinated file.
+
+### TASK
+Combine all the individual functions below into one single JavaScript file.
+
+### FUNCTIONS TO COMBINE
+{function_str}
+
+### IMPORTANT
+- Do not import any functions - you are COMBINING them, not importing them
+- Remove any individual `module.exports` from each function
+- Add ONE SINGLE `module.exports` at the end with ALL function names
+- Keep all function implementations exactly as they are (don't modify the function logic)
+- Each function should be a standalone function definition in the combined file
+
+### OUTPUT FORMAT
+Return your response in this YAML format:
+```yaml
+combined_function: |
+    function functionName1(params) {{
+        // function body exactly as provided
+    }}
+    
+    function functionName2(params) {{
+        // function body exactly as provided  
+    }}
+    
+    module.exports = {{ functionName1, functionName2, ... }};
+```
+
+### EXAMPLE
+If you have these two functions:
+```
+function add(a, b) {{ return a + b; }} module.exports = {{ add }};
+function sub(a, b) {{ return a - b; }} module.exports = {{ sub }};
+```
+
+Output should be:
+```yaml
+combined_function: |
+    function add(a, b) {{
+        return a + b;
+    }}
+    
+    function sub(a, b) {{
+        return a - b;
+    }}
+    
+    module.exports = {{ add, sub }};
+```
+"""
+
+    @staticmethod
+    def build_file_coordinator_test_code_prompt(functions_order, test_codes, file_path, suggested_file_paths):        
+        test_codes_str = ""
+        for function_name in functions_order:
+            test_codes_str += f"""
+                - {function_name}:
+                    {test_codes[function_name]}
+            """
+            
+        suggested_file_paths_str = ""
+        for function_name in functions_order:
+            suggested_file_paths_str += f"""
+                - {function_name}:
+                    {os.path.abspath(suggested_file_paths[function_name])}
+            """
 
         return f"""
+        You are a QA engineer responsible for coordinating test code and suggested file paths.
+        
+        ### TASK
+        Combine test codes and suggested file paths into a single file.
+        
+        ### TEST CODE
+        {test_codes_str}
+        
+        ### FILE PATHS
+        {os.path.abspath(file_path)}
 
+        ### SUGGESTED FILE PATHS
+        {suggested_file_paths_str}
 
+        ### Output combined test code in this YAML format:
+        ```yaml
+            <import library>
+            <test code>
+        ```
+        
+        ### TEST CODE INPUT EXAMPLE
+        test_codes:
+            - file1:
+                describe('add function', () => {{
+                    test('Basic case - positive integers', () => {{
+                        expect(add(5, 3)).toBe(8);
+                    }});
+                }});
+                    
+            - file2:
+                describe('sub function', () => {{
+                    test('Basic case - positive integers', () => {{
+                        expect(sub(5, 3)).toBe(2);
+                    }});
+                }});
+                
+        
+        ### TEST CODE OUTPUT EXAMPLE
+        ```yaml
+            test_code: |
+                describe('add function', () => {{
+                    test('Basic case - positive integers', () => {{
+                        expect(add(5, 3)).toBe(8);
+                    }});
+                }});
+
+                describe('sub function', () => {{
+                    test('Basic case - positive integers', () => {{
+                        expect(sub(5, 3)).toBe(2);
+                    }});
+                }});
+        ```
 """
 
