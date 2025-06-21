@@ -30,3 +30,21 @@ class ResponseParser:
                 raise ValueError("Tool action requires 'tool' field")
             if "parameters" not in parsed_response:
                 raise ValueError("Tool action requires 'parameters' field") 
+            
+    @staticmethod
+    def validate_supervise_response(parsed_response: Dict[str, Any]) -> None:
+        """Validate that the decision response has required fields"""
+        required_fields = ["action"]
+        for field in required_fields:
+            if field not in parsed_response:
+                raise ValueError(f"Missing required field: {field}")
+        
+        valid_actions = ["suggest", "done", "error"]
+        action = parsed_response["action"]
+        if action not in valid_actions:
+            raise ValueError(f"Invalid action '{action}'. Must be one of: {valid_actions}")
+        
+        # If action is tool, validate tool-specific fields
+        if action == "suggest":
+            if "suggestion" not in parsed_response:
+                raise ValueError("Suggest action requires 'suggestion' field")

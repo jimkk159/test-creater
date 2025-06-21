@@ -1,4 +1,4 @@
-from .analysis import AnalyzeNode
+from .analysis import AnalyzeAndExtractFunctionNode
 from .generation import GenerateTestCasesNode
 from .implementation import ImplementFunctionNode
 from .execution import RunTestsNode
@@ -6,7 +6,7 @@ from .revision import ReviseNode
 from .fileCoordinator import *
 
 __all__ = [
-    'AnalyzeNode',
+    'AnalyzeAndExtractFunctionNode',
     'GenerateTestCasesNode',
     'ImplementFunctionNode',
     'RunTestsNode',

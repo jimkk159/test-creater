@@ -7,20 +7,22 @@ from ..shared import TestSharedManager
 from ..formatters import TestFormatter
 from config import SystemConfig, TestActions, SharedKeys
 
+
 class RunTestsNode(AsyncParallelBatchNode):
     """Node responsible for executing test functions in parallel"""
-    
+
     async def prep_async(self, shared):
         """Prepare test execution"""
         print(SystemConfig.BORDER)
         print("🏃 Running test functions...")
-        
         function_name = self.params["function_name"]
-        TestSharedManager.set_max_iterations(shared, shared.get("max_iteration", SystemConfig.MAX_ITERATION))
+        TestSharedManager.set_max_iterations(
+            shared, shared.get("max_iteration", SystemConfig.MAX_ITERATION)
+        )
         TestSharedManager.init_function_suite_iterations(shared, function_name)
 
         return [shared[SharedKeys.TEST_CODE][function_name]]
-    
+
     async def exec_async(self, test_code):
         """Execute individual test suite"""
         suite_match = re.search(r"describe\('([^']+)'", test_code)
@@ -31,37 +33,31 @@ class RunTestsNode(AsyncParallelBatchNode):
         test_counts = extract_test_counts(end)
         failed = test_counts["failed"]
         suite_failed = test_counts["suite_failed"]
-        
-        if failed == 0 and suite_failed == 0: 
-            return {
-                "status": test_counts,
-                "detail": [],
-                "suite": suite_name
-            }
-        
+
+        if failed == 0 and suite_failed == 0:
+            return {"status": test_counts, "detail": [], "suite": suite_name}
+
         failed_details = []
         for content in details:
             expected = content["expected"]
             received = content["received"]
 
             if (expected is None and received is None) or (expected != received):
-                failed_details.append({
-                    "suite": content["suite"],
-                    "test_case": content["test_case"],
-                    "passed": False,
-                    "received": received,
-                    "expected": expected,
-                    "description": content["description"]
-                })
+                failed_details.append(
+                    {
+                        "suite": content["suite"],
+                        "test_case": content["test_case"],
+                        "passed": False,
+                        "received": received,
+                        "expected": expected,
+                        "description": content["description"],
+                    }
+                )
 
-        return {
-            "status": test_counts,
-            "detail": failed_details,
-            "suite": suite_name
-        }
+        return {"status": test_counts, "detail": failed_details, "suite": suite_name}
 
     async def post_async(self, shared, prep_res, exec_res_list):
-        """Process test execution results"""     
+        """Process test execution results"""
         function_name = self.params["function_name"]
         total_tests = passed_tests = failed_tests = suite_failed_tests = 0
         all_failed_details = []
@@ -71,36 +67,37 @@ class RunTestsNode(AsyncParallelBatchNode):
             if isinstance(batch_result, dict) and "status" in batch_result:
                 status = batch_result["status"]
                 suite_name = batch_result.get("suite", "unknown_suite")
-                
-                TestSharedManager.increment_suite_iteration(shared, function_name, suite_name)
-                
+
+                TestSharedManager.increment_suite_iteration(
+                    shared, function_name, suite_name
+                )
+
                 total_tests += status.get("total", 0)
                 passed_tests += status.get("passed", 0)
                 failed_tests += status.get("failed", 0)
                 suite_failed_tests += status.get("suite_failed", 0)
-                
+
                 if "detail" in batch_result:
                     all_failed_details.extend(batch_result["detail"])
-                    
-        if(total_tests == 0):
+
+        if total_tests == 0:
             print(exec_res_list)
             print(f"🔴 No tests found for {function_name}")
-            return TestActions.FAILURE
+            raise Exception("No tests found for " + function_name)
 
         TestFormatter.print_test_results(function_name, passed_tests, total_tests)
 
         if failed_tests == 0 and suite_failed_tests == 0:
             return TestActions.DEFAULT
-            
+
         TestSharedManager.store_test_results(
             shared, function_name, passed_tests, total_tests, all_failed_details
         )
         if TestSharedManager.check_max_iterations_reached(shared, function_name):
             print("Max iterations reached for one or more test suites.")
-            pprint.pprint(exec_res_list)
             raise Exception("Max iterations reached for one or more test suites.")
-            # return TestActions.MAX_ITERATIONS
+            # return TestActions.MAX_ITERATION
         else:
             print(f"❌Some tests failed. Revising code...")
             TestFormatter.print_failed_test_details(exec_res_list[0]["detail"])
-            return TestActions.FAILURE 
+            return TestActions.FAILURE

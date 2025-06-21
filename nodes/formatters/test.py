@@ -164,7 +164,7 @@ IMPORTANT:
 """
 
     @staticmethod
-    def build_test_case_prompt(function_name, function_content, error_prompt=""):
+    def build_test_case_prompt(function_name, function_content, suggestion="", error_prompt=""):
         """Build prompt for generating test cases"""
         return f"""
 ### CONTEXT
@@ -172,6 +172,9 @@ You are an assistant to help the Quality Assurance Engineer to generate test cas
 
 ## FUNCTIONS
 {function_name}: {function_content}
+
+### SUGGESTION
+{suggestion}
 
 {error_prompt}
 

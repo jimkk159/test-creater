@@ -1,9 +1,9 @@
-from .base import BaseAsyncToolNode
+from .base import AsyncBaseToolNode
 from config import Actions, SystemConfig
 from ..shared import ToolSharedManager
 from utils.utils import call_tool
 
-class ExecuteToolNode(BaseAsyncToolNode):
+class ExecuteToolNode(AsyncBaseToolNode):
     """Node responsible for executing the chosen tool"""
     
     async def prep_async(self, shared):

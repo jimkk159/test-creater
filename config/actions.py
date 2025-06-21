@@ -8,6 +8,7 @@ class Actions:
     DONE = "done"
     ERROR = "error"
     DEFAULT = "default"
+    SUGGEST = "suggest"
     TOOL_RESULT = "tool_result"
 
 class TestActions:
@@ -17,7 +18,7 @@ class TestActions:
     ERROR = "error"
     DEFAULT = "default"
     FAILURE = "failure"
-    MAX_ITERATIONS = "max_iterations"
+    MAX_ITERATION = "max_iteration"
 
 class ToolActions:
     """Tool-specific action types"""

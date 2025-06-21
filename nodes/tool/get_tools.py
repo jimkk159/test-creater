@@ -1,11 +1,11 @@
 import os
-from .base import BaseAsyncToolNode
+from .base import AsyncBaseToolNode
 from config import SystemConfig
 from ..shared import ToolSharedManager
 from ..formatters.tool import ToolFormatter
 from utils.utils import get_tools
 
-class GetToolsNode(BaseAsyncToolNode):
+class GetToolsNode(AsyncBaseToolNode):
     """Node responsible for retrieving available tools from MCP server"""
     
     async def prep_async(self, shared):

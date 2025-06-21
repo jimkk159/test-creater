@@ -1,4 +1,5 @@
 from config import SharedKeys
+from utils.utils import get_error_prompt
 
 class ToolFormatter:
     @staticmethod
@@ -27,7 +28,6 @@ class PromptBuilder:
     @staticmethod
     def build_decision_prompt(shared):
         """Build the prompt for tool decision"""
-        from utils.utils import get_error_prompt
         
         tool_info = shared[SharedKeys.FILE][SharedKeys.TOOL_INFO]
         question = shared[SharedKeys.QUESTION]

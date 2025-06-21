@@ -78,11 +78,11 @@ class TestSharedManager(BaseSharedManager):
     @staticmethod
     def check_max_iterations_reached(shared, function_name):
         """Check if any suite has reached max iterations"""
-        max_iterations = BaseSharedManager.get_value(shared, [SharedKeys.MAX_ITERATIONS], SystemConfig.MAX_ITERATION)
+        max_iterations = BaseSharedManager.get_value(shared, [SharedKeys.MAX_ITERATION], SystemConfig.MAX_ITERATION)
         
         if function_name not in shared.get(SharedKeys.SUITE_ITERATIONS, {}):
             return False
-            
+        
         return any(
             shared[SharedKeys.SUITE_ITERATIONS][function_name][suite] >= max_iterations
             for suite in shared[SharedKeys.SUITE_ITERATIONS][function_name]
@@ -126,9 +126,9 @@ class TestSharedManager(BaseSharedManager):
     @staticmethod
     def get_max_iterations(shared):
         """Get max iterations setting"""
-        return BaseSharedManager.get_value(shared, [SharedKeys.MAX_ITERATIONS], SystemConfig.MAX_ITERATION)
+        return BaseSharedManager.get_value(shared, [SharedKeys.MAX_ITERATION], SystemConfig.MAX_ITERATION)
 
     @staticmethod
     def set_max_iterations(shared, max_iter):
         """Set max iterations"""
-        BaseSharedManager.store_value(shared, [SharedKeys.MAX_ITERATIONS], max_iter) 
+        BaseSharedManager.store_value(shared, [SharedKeys.MAX_ITERATION], max_iter) 

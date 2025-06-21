@@ -11,7 +11,7 @@ class BaseToolNode(Node):
             shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["decide"]
         )
 
-class BaseAsyncToolNode(AsyncNode):
+class AsyncBaseToolNode(AsyncNode):
     """Base class for async tool-related nodes"""
     
     async def handle_error_async(self, shared, response):

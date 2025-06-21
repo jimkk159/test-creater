@@ -33,7 +33,7 @@ class SharedKeys:
     TOTAL_TESTS = "total_tests"
     FAILED_TESTS = "failed_tests"
     SUITE_ITERATIONS = "suite_iterations"
-    MAX_ITERATIONS = "max_iterations"
+    MAX_ITERATION = "max_iteration"
     ITERATION_COUNT = "iteration_count"
     
     # Tool-related keys
@@ -55,3 +55,7 @@ class SharedKeys:
     # System and utility keys
     TEMP_FILE_PATHS = "temp_file_paths"
     MAX_LOOP = "max_loop"
+    
+    SUGGESTION = "suggestion"
+    SUGGESTION_ITERATION_COUNT = "suggestion_iteration_count"
+    MAX_SUGGESTION_ITERATION = "max_suggestion_iteration"

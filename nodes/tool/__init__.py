@@ -1,11 +1,11 @@
-from .base import BaseToolNode, BaseAsyncToolNode
+from .base import BaseToolNode, AsyncBaseToolNode
 from .get_tools import GetToolsNode
 from .decide import DecideToolNode
 from .execute import ExecuteToolNode
 
 __all__ = [
     'BaseToolNode',
-    'BaseAsyncToolNode',
+    'AsyncBaseToolNode',
     'GetToolsNode',
     'DecideToolNode',
     'ExecuteToolNode'

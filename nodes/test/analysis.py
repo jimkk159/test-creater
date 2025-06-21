@@ -7,7 +7,7 @@ from config import SharedKeys, SystemConfig
 from ..formatters.test import TestPromptBuilder
 from ..response_parser.test import TestResponseParser
 
-class AnalyzeNode(Node):
+class AnalyzeAndExtractFunctionNode(Node):
     """Node responsible for analyzing files and extracting functions to test"""
     
     def prep(self, shared):
@@ -36,7 +36,7 @@ class AnalyzeNode(Node):
         """Store extracted functions"""
         if isinstance(response, dict) and "error" in response:
             return handle_max_iteration_error(
-                shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, ["analyze"]
+                shared, response, SystemConfig.BORDER, SystemConfig.SYSTEM_MAX_LOOP, node_name="analyze", keys=["analyze"]
             )
         
         TestSharedManager.store_functions(shared, response)

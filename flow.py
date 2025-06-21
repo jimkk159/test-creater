@@ -6,11 +6,12 @@ from nodes import (
     GenerateTestCasesNode,
     RunTestsNode,
     ImplementFunctionNode,
-    AnalyzeNode,
+    AnalyzeAndExtractFunctionNode,
     ReviseNode,
     TestCoordinatorNode,
     FunctionCoordinatorNode,
     DeleteTempFileNode,
+    SuperviseTestCaseNode,
 )
 
 from utils.utils import save_to_file
@@ -67,6 +68,7 @@ def Run_test_flow():
         is_use_function_name=True,
     )
     generate_test_cases = GenerateTestCasesNode(max_retries=2, wait=0)
+    supervise_test_cases = SuperviseTestCaseNode()
     implement_flow = Implement_flow()
 
     run_tests = RunTestsNode()
@@ -79,7 +81,9 @@ def Run_test_flow():
     implement_flow - "error" >> implement_flow
     revise - "error" >> revise
 
-    generate_test_cases >> implement_flow
+    generate_test_cases >> supervise_test_cases
+    supervise_test_cases - "suggest" >> generate_test_cases
+    supervise_test_cases >> implement_flow
     implement_flow >> run_tests
     run_tests - "failure" >> revise
     run_tests >> return_default_node
@@ -101,7 +105,8 @@ class FunctionParallelBatchFlow(AsyncParallelBatchFlow):
     async def post_async(self, shared, prep_res, exec_res):
         # Save the test code to a file
         print("🎉All tests passed across all batches!")
-        
+
+
 def FileCoordinatorFlow():
     # Combine test code and suggested file
     test_coordinator = TestCoordinatorNode()
@@ -110,7 +115,7 @@ def FileCoordinatorFlow():
 
     function_coordinator >> test_coordinator
     test_coordinator >> delete_temp_file
-    
+
     return AsyncFlow(start=function_coordinator)
 
 
@@ -119,7 +124,7 @@ def auto_code_test_generate_flow():
 
     # Create flows or nodes
     read_and_find_file_flow = Read_and_find_file_flow()
-    analyze_node = AnalyzeNode()
+    analyze_and_extract_functions_node = AnalyzeAndExtractFunctionNode()
 
     run_test_flow = Run_test_flow()
 
@@ -129,8 +134,8 @@ def auto_code_test_generate_flow():
     file_coordinator = FileCoordinatorFlow()
 
     # Connect nodes
-    read_and_find_file_flow >> analyze_node
-    analyze_node >> function_parallel_batch
+    read_and_find_file_flow >> analyze_and_extract_functions_node
+    analyze_and_extract_functions_node >> function_parallel_batch
     function_parallel_batch >> file_coordinator
 
     # Create flow starting with test generation

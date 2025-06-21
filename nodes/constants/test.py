@@ -5,7 +5,7 @@ class TestActions:
     ERROR = "error"
     DEFAULT = "default"
     FAILURE = "failure"
-    MAX_ITERATIONS = "max_iterations"
+    MAX_ITERATION = "max_iteration"
 
 # Test shared keys
 class SharedKeys:
@@ -18,7 +18,7 @@ class SharedKeys:
     TOTAL_TESTS = "total_tests"
     FAILED_TESTS = "failed_tests"
     SUITE_ITERATIONS = "suite_iterations"
-    MAX_ITERATIONS = "max_iterations"
+    MAX_ITERATION = "max_iteration"
     ITERATION_COUNT = "iteration_count"
     FUNCTION_SUGGESTION = "function_suggestion"
     IMPLEMENT = "implement"

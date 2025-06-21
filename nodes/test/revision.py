@@ -16,53 +16,62 @@ class ReviseNode(Node):
     def prep(self, shared):
         """Prepare revision prompt"""
         print(SystemConfig.BORDER)
-        function_name = self.params["function_name"]
+        function_name = self.params[SharedKeys.FUNCTION_NAME]
         print(f"💭 AI review the test result for {function_name}...")
         TestSharedManager.increment_iteration_count(shared, function_name)
         test_cases = shared.get(SharedKeys.TEST_CASES, {})
         failed_tests = shared.get(SharedKeys.FAILED_TESTS, {})
-        try:
-            # Format test cases for prompt
-            formatted_tests = ""
-            formatted_tests += TestFormatter.format_test_cases(
-                test_cases[function_name]["init"]
-            )
-            # Format failed tests for prompt
-            formatted_failures = TestFormatter.format_failed_tests(
-                failed_tests[function_name]
-            )
 
-            # Get functions from shared
-            functions = shared.get(SharedKeys.FUNCTIONS, {})
+        # try:
+        # Format test cases for prompt
+        formatted_tests = ""
+        formatted_tests += TestFormatter.format_test_cases(
+            test_cases[function_name]["init"]
+        )
+        # Format failed tests for prompt
+        formatted_failures = TestFormatter.format_failed_tests(
+            failed_tests[function_name]
+        )
 
-            # Get test code from shared
-            test_code_dict = shared.get(SharedKeys.TEST_CODE, {})
-            test_code = test_code_dict[function_name]
-            # Get test code from shared
-            file_path = shared.get(SharedKeys.FILE_PATH, "")
-            suggested_file_path = shared.get(SharedKeys.SUGGESTED_FILE_PATH, "")
+        # Get functions from shared
+        functions = shared.get(SharedKeys.FUNCTIONS, {})
+
+        # Get test code from shared
+        test_code_dict = shared.get(SharedKeys.TEST_CODE, {})
+        test_code = test_code_dict[function_name]
+        # Get test code from shared
+        file_path = shared.get(SharedKeys.FILE_PATH, "")
+
+        new_test_code = test_code
+        if SharedKeys.SUGGESTED_FILE_PATH not in shared:
+            shared[SharedKeys.SUGGESTED_FILE_PATH] = {}
+        else:
+            suggested_file_path = shared.get(SharedKeys.SUGGESTED_FILE_PATH, {})
 
             # Regular expression to match only inside require()
-            pattern = rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
+            pattern = (
+                rf"(require\(['\"]){re.escape(os.path.abspath(file_path))}(['\"]\))"
+            )
+
             replacement = rf"\1{os.path.abspath(suggested_file_path[function_name])}\2"
 
             # Perform the replacement
             new_test_code = re.sub(pattern, replacement, test_code)
 
-            # Get error prompt
-            error_prompt = get_error_prompt(shared, ["revise", function_name])
+        # Get error prompt
+        error_prompt = get_error_prompt(shared, ["revise", function_name])
 
-            return TestPromptBuilder.build_revise_prompt(
-                formatted_tests,
-                functions[function_name],
-                new_test_code,
-                formatted_failures,
-                error_prompt,
-            )
+        return TestPromptBuilder.build_revise_prompt(
+            formatted_tests,
+            functions[function_name],
+            new_test_code,
+            formatted_failures,
+            error_prompt,
+        )
 
-        except Exception as e:
-            print(f"Error preparing revision prompt: {e}")
-            return {"error": e}
+        # except Exception as e:
+        #     print(f"Error preparing revision prompt: {e}")
+        #     return {"error": e}
 
     def exec(self, prompt_input):
         """Revise test cases using LLM"""
@@ -84,7 +93,8 @@ class ReviseNode(Node):
                 response,
                 SystemConfig.BORDER,
                 SystemConfig.SYSTEM_MAX_LOOP,
-                ["revise", function_name],
+                node_name="revise",
+                keys=["revise", function_name],
             )
 
         action = response.get("action")
@@ -102,8 +112,14 @@ class ReviseNode(Node):
                 response[SharedKeys.TEST_CODE],
                 response[SharedKeys.FUNCTION_SUGGESTION],
             )
-            with open(shared[SharedKeys.SUGGESTED_FILE_PATH][function_name], "w") as f:
-                f.write(shared[SharedKeys.FUNCTIONS][function_name])
+            if (
+                function_name in shared[SharedKeys.SUGGESTED_FILE_PATH]
+                and shared[SharedKeys.SUGGESTED_FILE_PATH][function_name] != ""
+            ):
+                with open(
+                    shared[SharedKeys.SUGGESTED_FILE_PATH][function_name], "w"
+                ) as f:
+                    f.write(shared[SharedKeys.FUNCTIONS][function_name])
 
             return TestActions.DEFAULT
         else:

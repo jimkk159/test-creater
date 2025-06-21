@@ -14,6 +14,7 @@ class SystemConfig:
 
     # Test configuration
     MAX_ITERATION = 5
+    MAX_SUGGESTION_ITERATION = 2
     TEST_DIRECTORY = "test"
 
     # MCP Server configuration
