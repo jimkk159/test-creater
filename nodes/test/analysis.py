@@ -15,11 +15,13 @@ class AnalyzeAndExtractFunctionNode(Node):
         print(SystemConfig.BORDER)
         print("🔍 Analyze the file content...")
         
-        TestSharedManager.store_file_content(shared, shared[SharedKeys.FILE]["tool_result"])
+        # Get file content from the appropriate key based on shared structure
+        file_content = shared[SharedKeys.FILE].get("tool_result") or shared[SharedKeys.FILE].get("result", "")
+        TestSharedManager.store_file_content(shared, file_content)
         error_prompt = get_error_prompt(shared, ['analyze'])
         
         return TestPromptBuilder.build_analyze_prompt(
-            shared[SharedKeys.FILE][SharedKeys.TOOL_RESULT], 
+            file_content, 
             error_prompt
         )
 

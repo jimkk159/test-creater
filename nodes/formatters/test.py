@@ -146,21 +146,35 @@ Extract the function in the file
 {file_content}
 
 ## NEXT ACTION
-EXtract functions in the file
+Extract functions in the file
 
 Return your response in this format:
 
 ```yaml
 functions: 
-    - <function name>: <function content>
-    - <function name>: <function content>
+    - <function name>: |
+        <function content with proper indentation>
+    - <function name>: |
+        <function content with proper indentation>
 ```
 
-IMPORTANT: 
-1. Use proper indentation (4 spaces) for multi-line fields
-2. Use the | character for multi-line text fields
-3. If you got error, just try to fix the error and try again.
-4. If you think you can't handle the error, just return the error action.
+IMPORTANT YAML FORMATTING RULES:
+1. Use the | character for multi-line function content
+2. After the | character, ALL content must be indented by 4 more spaces
+3. Example format:
+   ```yaml
+   functions:
+       - add: |
+           function add(a, b) {{
+               return a + b;
+           }}
+       - subtract: |
+           function subtract(a, b) {{
+               return a - b;
+           }}
+   ```
+4. If you get an error, just try to fix the error and try again
+5. If you think you can't handle the error, just return the error action
 """
 
     @staticmethod
@@ -178,7 +192,13 @@ You are an assistant to help the Quality Assurance Engineer to generate test cas
 
 {error_prompt}
 
-Output in this YAML format with reasoning:
+### IMPORTANT YAML FORMATTING RULES:
+- Always quote string values that contain colons (:), quotes, or special characters
+- For error messages like "Error: Division by zero", use quotes: expected: "Error: Division by zero"
+- For simple values like numbers or booleans, no quotes needed: expected: 42
+- Use proper indentation (4 spaces) for nested items
+
+### Output in this YAML format with reasoning:
 ```yaml
 reasoning: |
     The input parameters should be: param1 as a string, and param2 as a number.
@@ -315,7 +335,7 @@ test_cases:
         - name: "Revised test name"
           input: {{...}}
           expected: ...
-            status: fail
+          status: fail
 
 function_suggestion:  # Entire function file content, include function's reference, content and export    
 test_code:  # Include if test code is revised
