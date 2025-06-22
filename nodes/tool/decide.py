@@ -11,7 +11,6 @@ class DecideToolNode(BaseToolNode):
     
     def prep(self, shared):
         """Build the decision prompt for the LLM"""
-            
         return PromptBuilder.build_decision_prompt(shared)
 
     def exec(self, prompt):
@@ -31,7 +30,6 @@ class DecideToolNode(BaseToolNode):
         """Process the decision response and determine next action"""
         if "error" in response:
             return self.handle_error(shared, response)
-            
         ToolSharedManager.store_decision_response(shared, response)
         action = ToolSharedManager.get_action(shared)
         print(SystemConfig.BORDER)
@@ -52,3 +50,4 @@ class DecideToolNode(BaseToolNode):
             return Actions.TOOL
         
         return Actions.ERROR 
+    

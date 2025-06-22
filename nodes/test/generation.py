@@ -33,7 +33,9 @@ class GenerateTestCasesNode(Node):
     def exec(self, prompt):
         """Generate test cases using LLM"""
         try:
+            print(1111, 'generate', prompt)
             response = call_llm(prompt)
+            print(2222, 'generate',response)
             parsed_response = TestResponseParser.parse_yaml_response(response)
             TestResponseParser.validate_test_case_response(parsed_response)
             return parsed_response
@@ -54,6 +56,7 @@ class GenerateTestCasesNode(Node):
                 SystemConfig.BORDER,
                 SystemConfig.SYSTEM_MAX_LOOP,
                 node_name="generateTestCases",
+                function_name=function_name,
                 keys=["generateTestCases", function_name],
             )
         TestSharedManager.store_test_cases(

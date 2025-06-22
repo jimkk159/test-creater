@@ -27,6 +27,8 @@ class RunTestsNode(AsyncParallelBatchNode):
         """Execute individual test suite"""
         suite_match = re.search(r"describe\('([^']+)'", test_code)
         suite_name = suite_match.group(1) if suite_match else "unknown_suite"
+        print(SystemConfig.BORDER)
+        print(1111, 'test code running', test_code)
         output = await execute_jest_test(test_code)
         end = output["end"]
         details = output["details"]
@@ -81,8 +83,10 @@ class RunTestsNode(AsyncParallelBatchNode):
                     all_failed_details.extend(batch_result["detail"])
 
         if total_tests == 0:
-            print(exec_res_list)
+            print(SystemConfig.BORDER)
             print(f"🔴 No tests found for {function_name}")
+            print("Test code:", shared[SharedKeys.TEST_CODE][function_name])
+            print("Test results:", exec_res_list)
             raise Exception("No tests found for " + function_name)
 
         TestFormatter.print_test_results(function_name, passed_tests, total_tests)

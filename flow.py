@@ -136,7 +136,7 @@ def auto_code_test_generate_flow():
     # Connect nodes
     read_and_find_file_flow >> analyze_and_extract_functions_node
     analyze_and_extract_functions_node >> function_parallel_batch
-    function_parallel_batch >> file_coordinator
+    # function_parallel_batch >> file_coordinator
 
     # Create flow starting with test generation
     return AsyncFlow(start=read_and_find_file_flow)

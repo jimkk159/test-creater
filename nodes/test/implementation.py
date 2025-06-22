@@ -14,8 +14,8 @@ class ImplementFunctionNode(Node):
     def prep(self, shared):
         """Prepare implementation prompt"""
         print(SystemConfig.BORDER)
-        print("📝 Implementing test cases...")
         function_name = self.params["function_name"]
+        print(f"📝 Implementing {function_name} test cases...")
         file_path = shared[SharedKeys.FILE_PATH]
         functions = shared[SharedKeys.FUNCTIONS][function_name]
         test_cases = shared[SharedKeys.TEST_CASES][function_name]["init"]
@@ -33,7 +33,9 @@ class ImplementFunctionNode(Node):
 
     def exec(self, prompt):
         """Implement test functions using LLM"""
+        print(1111, 'implement', prompt)
         response = call_llm(prompt)
+        print(2222, 'implement', response)
 
         parsed_response = TestResponseParser.parse_yaml_response(response)
         TestResponseParser.validate_implement_response(parsed_response)
@@ -54,6 +56,7 @@ class ImplementFunctionNode(Node):
                 SystemConfig.BORDER,
                 SystemConfig.SYSTEM_MAX_LOOP,
                 node_name="implement",
+                function_name=function_name,
                 keys=["implement", function_name],
             )
         TestSharedManager.store_test_code(shared, function_name, test_code)

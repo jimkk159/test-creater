@@ -1,6 +1,7 @@
 import yaml
 from typing import Dict, Any
 import logging
+from config import SystemConfig
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -12,22 +13,35 @@ class ResponseParser:
         logger.debug("=== FULL LLM RESPONSE ===")
         logger.debug(response)
         logger.debug("=== END RESPONSE ===")
-        
+        new_yaml_str = ""
         try:
             yaml_str = response.split("```yaml")[1].split("```")[0].strip()
-            
             logger.debug("=== EXTRACTED YAML ===")
             logger.debug(f"YAML string: {repr(yaml_str)}")
             logger.debug("=== END YAML ===")
-            
+
             # Fix common YAML issues by quoting unquoted strings with colons
-            yaml_str = ResponseParser._fix_yaml_strings(yaml_str)
-            
-            return yaml.safe_load(yaml_str)
+            output = {}
+            try:
+                output =yaml.safe_load(yaml_str)
+                return output
+            except Exception as e:
+                logger.error("=== YAML PARSING ERROR ===")
+                # Try to identify the problematic line
+                lines = yaml_str.split('\n')
+                for i, line in enumerate(lines):
+                    print(line)
+                logger.error("=== END ERROR ===")
+                new_yaml_str = ResponseParser._fix_yaml_strings(yaml_str)
+                output = yaml.safe_load(new_yaml_str)
+            return output
         except (IndexError, yaml.YAMLError) as e:
             logger.error("=== YAML PARSING ERROR ===")
-            logger.error(f"Error: {e}")
-            logger.error(f"YAML content that failed: {repr(yaml_str) if 'yaml_str' in locals() else 'No YAML extracted'}")
+            print(SystemConfig.BORDER)
+            # Try to identify the problematic line
+            lines = new_yaml_str.split('\n')
+            for i, line in enumerate(lines):
+                print(line)
             logger.error("=== END ERROR ===")
             raise ValueError(f"Failed to parse YAML response: {e}")
     
@@ -37,45 +51,19 @@ class ResponseParser:
         import re
         lines = yaml_str.split('\n')
         fixed_lines = []
-        in_literal_block = False
-        literal_indent_level = 0
         
         for i, line in enumerate(lines):
-            # Fix indentation: convert 8-space indents to 4-space
-            if line.startswith('        '):  # 8 spaces
-                line = '    ' + line[8:]  # Convert to 4 spaces
-            
-            # Check if we're starting a literal block (line ending with |)
-            if line.strip().endswith('|'):
-                in_literal_block = True
-                # Calculate the base indentation level for this block
-                literal_indent_level = len(line) - len(line.lstrip()) + 4  # Add 4 for literal block content
-                fixed_lines.append(line)
-                continue
-            
-            # If we're in a literal block, ensure proper indentation
-            if in_literal_block:
-                if line.strip() == '':  # Empty line
-                    fixed_lines.append(line)
-                    continue
-                elif line.startswith('    - ') or line.startswith('- '):  # New list item, exit literal block
-                    in_literal_block = False
-                    literal_indent_level = 0
-                else:
-                    # Ensure the line has the proper indentation for literal block content
+            # If this line is part of a list item, fix the indentation
+            if i > 0 and '- ' in lines[i-1]:  # Previous line had a list marker
+                # Find the indentation of the list marker line
+                prev_line = lines[i-1]
+                list_marker_pos = prev_line.find('- ')
+                if list_marker_pos >= 0:
+                    # All properties should align with the property after `-`
+                    target_indent = list_marker_pos + 2  # 2 spaces after `-`
                     content = line.lstrip()
-                    if content:  # Non-empty line
-                        line = ' ' * literal_indent_level + content
-            
-            # Match lines like "expected: Error: Division by zero"
-            match = re.match(r'^(\s*expected:\s*)(.*)$', line)
-            if match:
-                indent_and_key = match.group(1)
-                value = match.group(2).strip()
-                
-                # If value contains colon and isn't already quoted, quote it
-                if ':' in value and not (value.startswith('"') and value.endswith('"')) and not (value.startswith("'") and value.endswith("'")):
-                    line = f'{indent_and_key}"{value}"'
+                    if content:  # Don't fix empty lines
+                        line = ' ' * target_indent + content
             
             fixed_lines.append(line)
         

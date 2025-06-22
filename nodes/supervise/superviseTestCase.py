@@ -15,8 +15,8 @@ class SuperviseTestCaseNode(AsyncBaseToolNode):
     async def prep_async(self, shared):
         """Prepare supervise test case prompt"""
         print(SystemConfig.BORDER)
-        print("🧠 Evaluate whether the generated test cases are reasonable...")
         function_name = self.params[SharedKeys.FUNCTION_NAME]
+        print(f"🧠 Evaluate whether the {function_name} generated test cases are reasonable...")
         test_cases = BaseSharedManager.get_value(
             shared, [SharedKeys.TEST_CASES, function_name, "init"], ""
         )

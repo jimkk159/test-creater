@@ -252,7 +252,7 @@ def set_nested_value(d, keys, value=None, increment=False, default=0):
         current[final_key] = value
         return current[final_key]
 
-def handle_max_iteration_error(shared, exec_res, border, max_loop, node_name="", keys=[], return_key='error'):
+def handle_max_iteration_error(shared, exec_res, border, max_loop, node_name="", function_name="", keys=[], return_key='error'):
     if len(keys) == 0:
         return 'default'
 
@@ -275,8 +275,8 @@ def handle_max_iteration_error(shared, exec_res, border, max_loop, node_name="",
 
     print(f"🔁 Max {node_name} retries reached or error in exec. Returning 'error' action.")
     print(f"exec_res type: {type(exec_res)}, value: ")
-    pprint.pprint(shared)
-    pprint.pprint(exec_res)
+
+
     raise Exception("Max loop reached")
     
     # Handle case where exec_res might be a string or dict
